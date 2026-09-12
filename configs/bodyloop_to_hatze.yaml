@@ -1,44 +1,3719 @@
-# Mapping BodyLoop measurements to Hatze (1979/1980) segment parameters
-# Version: 0.1.0
+# Mapping BodyLoop measurements to the Hatze (1979) 242-measurement set
+# Version: 0.1.0 - PROVISIONAL, NOT SCIENTIFICALLY VALIDATED
 #
-# Primary references:
+# Primary reference (NOT AVAILABLE to the authors of this file):
 #   Hatze, H. (1979). A model for the computational determination of parameter
-#     values of anthropomorphic segments. CSIR Technical Report TWISK 79.
-#   Hatze, H. (1980). A mathematical model for the computational determination
-#     of parameter values of anthropomorphic segments. J Biomech 13(10):833-843.
+#   values of anthropomorphic segments. CSIR Technical Report TWISK 79,
+#   Pretoria, South Africa.
+#   Hatze, H. (1980). J Biomech 13(10):833-843.
 #
-# WARNING: the hatze-biomech MATLAB reference implementation explicitly states
-#          that some equations are incomplete or incorrect.  Every entry in this
-#          file must be validated against the original CSIR Technical Report
-#          before use in research.  See SCIENCE_DECISIONS.md.
+# Derived from: docs/HATZE_EQUATIONS.md (cheatsheet extraction, audited) and
+#               validation/HATZE_PRIMITIVES_AUDIT.md (numerical audit).
 #
-# Format per segment:
-#   segment_name:
-#     description: ""       # anatomical description of the segment
-#     measurements:
-#       hatze_key:
-#         bodyloop_path: null  # JSON path or null
-#         source_type: null
-#         anatomical_definition: ""
-#         units: "m"
-#         confidence: 0.0
-#         manual_validation_required: true
+# Entry count: 242.  Reconstructed per segment from the figures of
+# docs/HATZE_EQUATIONS.md section 3:
+#   seg  1 trunk          10 slices x 2 semi-axes + 4 lung parameters =  24
+#   seg  2 head-neck                                                  =   8
+#   seg  3,4 shoulders    5 each                                      =  10
+#   seg  5-8 fore/upper arms   10 sections x 2 axes x 4               =  80
+#   seg  9,10 hands       8 each                                      =  16
+#   seg 11 pelvis                                                     =  12
+#   seg 12,13,15,16 thighs/shanks  10 sections x 2 axes x 4           =  80
+#   seg 14,17 feet        6 each                                      =  12
+#                                                            total    = 242
 #
-# TODO_SCIENTIFIC: define the 17 Hatze segments and all required measurement
-#                  keys from the original 1979 CSIR Technical Report.
-#                  See SCIENCE_DECISIONS.md.
+# ---------------------------------------------------------------------------
+# WARNING 1 - the measurement-to-parameter equations are MISSING
+# ---------------------------------------------------------------------------
+# The cheatsheet does NOT contain the equations mapping Hatze's measurements to
+# the primitive parameters (a, b, c, r, h, l).  Every entry below therefore
+# records WHICH primitive parameter it feeds, not HOW.  The adapter
+# (bodyloop_anthropometrics/anthropometry/hatze_adapter.py) raises
+# NotImplementedError for every parameter computation until Hatze (1979) is
+# obtained.  See SCIENCE_DECISIONS.md.
+#
+# ---------------------------------------------------------------------------
+# WARNING 2 - primitive A1.4 is BLOCKED
+# ---------------------------------------------------------------------------
+# The elliptic octoparaboloid A1.4 has numerically wrong published
+# coefficients (validation/HATZE_PRIMITIVES_AUDIT.md).  Every entry feeding it
+# carries `blocked: true` and any attempt to use it raises RuntimeError.
+#
+# ---------------------------------------------------------------------------
+# WARNING 3 - BodyLoop path vocabulary is PROVISIONAL
+# ---------------------------------------------------------------------------
+# TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed.  Every
+# `bodyloop_path` below follows the naming convention of
+# `bodyloop_anthropometrics/api/export.py` but the labels actually emitted by
+# the scanner have NOT been verified.  A path that does not resolve is reported
+# in `MeasurementSet.missing` - it is NEVER imputed (AGENTS.md rule 2).
+#
+# ---------------------------------------------------------------------------
+# Format per key:  h<segment>_<slot>_<axis>
+# ---------------------------------------------------------------------------
+#   description: str                 what the measurement is
+#   primitive: str                   Hatze primitive fed (A1.1 ... A1.9,
+#                                    'composite' or 'ellipsoid' when the
+#                                    cheatsheet gives no decomposition)
+#   parameter: str                   parameter fed (a, b, c, h, r, R, l, theta)
+#   segment: int                     1 .. 17
+#   slice: int                       cross-section index, when applicable
+#   unit: "m" | "rad"                internal SI units (AGENTS.md rule 5)
+#   source: direct | calculated | interpolated | external | manual
+#   bodyloop_path: str | null        dotted path, null when not directly
+#                                    readable
+#   frame: str                       reference frame
+#   confidence: float                0.0 unknown ... 1.0 direct measurement
+#   manual_validation_required: bool
+#   path_note: str                   provisional-path caveat
+#   notes: str                       TODO_SCIENTIFIC / TODO_VALIDATE caveats
+#   blocked: true                    present only on A1.4 entries
 
-# --- Segment 1: Head ---
-head:
-  description: "Superior to the atlantooccipital joint."
-  measurements:
-    # TODO: populate head measurement keys from Hatze (1979)
 
-# --- Segment 2: Neck ---
-neck:
-  description: "Between atlantooccipital and C7/T1 joints."
-  measurements:
-    # TODO: populate neck measurement keys
+# ==========================================================================
+# SEGMENT 1 - ABDOMINO-THORACIC TRUNK (24)
+# 10 stacked elliptic cylinders (A1.1) of height l/10, plus two hollow
+# half-cylindrical lung cavities (A1.6).  Figure F2.1/F2.2.
+# Slice 1 is the DISTAL slice (origin O_1 at the base, Z_1 superior).
+# Axis convention: a_i = ML (X), b_i = AP (Y) - see the A1.1 audit
+# correction in docs/HATZE_EQUATIONS.md (the cheatsheet header is wrong).
+# ==========================================================================
 
-# --- Segments 3-17: trunk, arms, forearms, hands, thighs, shanks, feet ---
-# TODO: add all remaining 15 segments with measurement keys
+h1_s01_ml:
+  description: "Trunk slice 1 medial-lateral full width feeding the elliptic cylinder semi-axis a_1"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 1
+  slice: 1
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.trunk_level_01.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.45
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the trunk slice boundaries (l/10 spacing from the distal end) are not a BodyLoop landmark and must be validated against the scan"
+
+h1_s01_ap:
+  description: "Trunk slice 1 antero-posterior full width feeding the elliptic cylinder semi-axis b_1"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 1
+  slice: 1
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.trunk_level_01.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.45
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the trunk slice boundaries (l/10 spacing from the distal end) are not a BodyLoop landmark and must be validated against the scan"
+
+h1_s02_ml:
+  description: "Trunk slice 2 medial-lateral full width feeding the elliptic cylinder semi-axis a_2"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 1
+  slice: 2
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.trunk_level_02.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.45
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the trunk slice boundaries (l/10 spacing from the distal end) are not a BodyLoop landmark and must be validated against the scan"
+
+h1_s02_ap:
+  description: "Trunk slice 2 antero-posterior full width feeding the elliptic cylinder semi-axis b_2"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 1
+  slice: 2
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.trunk_level_02.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.45
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the trunk slice boundaries (l/10 spacing from the distal end) are not a BodyLoop landmark and must be validated against the scan"
+
+h1_s03_ml:
+  description: "Trunk slice 3 medial-lateral full width feeding the elliptic cylinder semi-axis a_3"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 1
+  slice: 3
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.trunk_level_03.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.45
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the trunk slice boundaries (l/10 spacing from the distal end) are not a BodyLoop landmark and must be validated against the scan"
+
+h1_s03_ap:
+  description: "Trunk slice 3 antero-posterior full width feeding the elliptic cylinder semi-axis b_3"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 1
+  slice: 3
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.trunk_level_03.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.45
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the trunk slice boundaries (l/10 spacing from the distal end) are not a BodyLoop landmark and must be validated against the scan"
+
+h1_s04_ml:
+  description: "Trunk slice 4 medial-lateral full width feeding the elliptic cylinder semi-axis a_4"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 1
+  slice: 4
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.trunk_level_04.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.45
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the trunk slice boundaries (l/10 spacing from the distal end) are not a BodyLoop landmark and must be validated against the scan"
+
+h1_s04_ap:
+  description: "Trunk slice 4 antero-posterior full width feeding the elliptic cylinder semi-axis b_4"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 1
+  slice: 4
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.trunk_level_04.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.45
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the trunk slice boundaries (l/10 spacing from the distal end) are not a BodyLoop landmark and must be validated against the scan"
+
+h1_s05_ml:
+  description: "Trunk slice 5 medial-lateral full width feeding the elliptic cylinder semi-axis a_5"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 1
+  slice: 5
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.trunk_level_05.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.45
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the trunk slice boundaries (l/10 spacing from the distal end) are not a BodyLoop landmark and must be validated against the scan"
+
+h1_s05_ap:
+  description: "Trunk slice 5 antero-posterior full width feeding the elliptic cylinder semi-axis b_5"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 1
+  slice: 5
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.trunk_level_05.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.45
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the trunk slice boundaries (l/10 spacing from the distal end) are not a BodyLoop landmark and must be validated against the scan"
+
+h1_s06_ml:
+  description: "Trunk slice 6 medial-lateral full width feeding the elliptic cylinder semi-axis a_6"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 1
+  slice: 6
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.trunk_level_06.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.45
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the trunk slice boundaries (l/10 spacing from the distal end) are not a BodyLoop landmark and must be validated against the scan"
+
+h1_s06_ap:
+  description: "Trunk slice 6 antero-posterior full width feeding the elliptic cylinder semi-axis b_6"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 1
+  slice: 6
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.trunk_level_06.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.45
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the trunk slice boundaries (l/10 spacing from the distal end) are not a BodyLoop landmark and must be validated against the scan"
+
+h1_s07_ml:
+  description: "Trunk slice 7 medial-lateral full width feeding the elliptic cylinder semi-axis a_7"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 1
+  slice: 7
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.trunk_level_07.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.45
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the trunk slice boundaries (l/10 spacing from the distal end) are not a BodyLoop landmark and must be validated against the scan"
+
+h1_s07_ap:
+  description: "Trunk slice 7 antero-posterior full width feeding the elliptic cylinder semi-axis b_7"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 1
+  slice: 7
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.trunk_level_07.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.45
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the trunk slice boundaries (l/10 spacing from the distal end) are not a BodyLoop landmark and must be validated against the scan"
+
+h1_s08_ml:
+  description: "Trunk slice 8 medial-lateral full width feeding the elliptic cylinder semi-axis a_8"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 1
+  slice: 8
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.trunk_level_08.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.45
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the trunk slice boundaries (l/10 spacing from the distal end) are not a BodyLoop landmark and must be validated against the scan"
+
+h1_s08_ap:
+  description: "Trunk slice 8 antero-posterior full width feeding the elliptic cylinder semi-axis b_8"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 1
+  slice: 8
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.trunk_level_08.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.45
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the trunk slice boundaries (l/10 spacing from the distal end) are not a BodyLoop landmark and must be validated against the scan"
+
+h1_s09_ml:
+  description: "Trunk slice 9 medial-lateral full width feeding the elliptic cylinder semi-axis a_9"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 1
+  slice: 9
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.trunk_level_09.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.45
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the trunk slice boundaries (l/10 spacing from the distal end) are not a BodyLoop landmark and must be validated against the scan"
+
+h1_s09_ap:
+  description: "Trunk slice 9 antero-posterior full width feeding the elliptic cylinder semi-axis b_9"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 1
+  slice: 9
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.trunk_level_09.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.45
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the trunk slice boundaries (l/10 spacing from the distal end) are not a BodyLoop landmark and must be validated against the scan"
+
+h1_s10_ml:
+  description: "Trunk slice 10 medial-lateral full width feeding the elliptic cylinder semi-axis a_10"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 1
+  slice: 10
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.trunk_level_10.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.45
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the trunk slice boundaries (l/10 spacing from the distal end) are not a BodyLoop landmark and must be validated against the scan"
+
+h1_s10_ap:
+  description: "Trunk slice 10 antero-posterior full width feeding the elliptic cylinder semi-axis b_10"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 1
+  slice: 10
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.trunk_level_10.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.45
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the trunk slice boundaries (l/10 spacing from the distal end) are not a BodyLoop landmark and must be validated against the scan"
+
+h1_lung_outer_radius:
+  description: "Outer radius R of the hollow half-cylinder modelling one lung cavity"
+  primitive: "A1.6"
+  parameter: "R"
+  segment: 1
+  unit: "m"
+  source: "manual"
+  bodyloop_path: null
+  frame: "anatomical_local_trunk"
+  confidence: 0.1
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: the lung cavity geometry is not observable by an optical scanner and Hatze's lung volume integration formula is absent from the cheatsheet - see SCIENCE_DECISIONS.md 'Pulmonary volume correction'. Requires spirometry or imaging."
+
+h1_lung_inner_radius:
+  description: "Inner radius r of the hollow half-cylinder modelling one lung cavity"
+  primitive: "A1.6"
+  parameter: "r"
+  segment: 1
+  unit: "m"
+  source: "manual"
+  bodyloop_path: null
+  frame: "anatomical_local_trunk"
+  confidence: 0.1
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: the lung cavity geometry is not observable by an optical scanner and Hatze's lung volume integration formula is absent from the cheatsheet - see SCIENCE_DECISIONS.md 'Pulmonary volume correction'. Requires spirometry or imaging."
+
+h1_lung_height:
+  description: "Height h of the lung cavity, starting l/3 above the distal end of the trunk"
+  primitive: "A1.6"
+  parameter: "h"
+  segment: 1
+  unit: "m"
+  source: "manual"
+  bodyloop_path: null
+  frame: "anatomical_local_trunk"
+  confidence: 0.1
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: the lung cavity geometry is not observable by an optical scanner and Hatze's lung volume integration formula is absent from the cheatsheet - see SCIENCE_DECISIONS.md 'Pulmonary volume correction'. Requires spirometry or imaging."
+
+h1_lung_offset:
+  description: "Lateral offset d/2 of each lung cavity axis from the trunk Z axis"
+  primitive: "A1.6"
+  parameter: "d"
+  segment: 1
+  unit: "m"
+  source: "manual"
+  bodyloop_path: null
+  frame: "anatomical_local_trunk"
+  confidence: 0.1
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: the lung cavity geometry is not observable by an optical scanner and Hatze's lung volume integration formula is absent from the cheatsheet - see SCIENCE_DECISIONS.md 'Pulmonary volume correction'. Requires spirometry or imaging."
+
+# ==========================================================================
+# SEGMENT 2 - HEAD-NECK (8)
+# Truncated ellipsoid (semi-axes a, b, c; truncation height k) on an
+# elliptic cylinder of height h and base a1 x b1.  Figure F2.3.
+# ==========================================================================
+
+h2_ellipsoid_a:
+  description: "Head ellipsoid medial-lateral semi-axis a (X)"
+  primitive: "ellipsoid"
+  parameter: "a"
+  segment: 2
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.head_max.width_ml"
+  frame: "anatomical_local_head_neck"
+  confidence: 0.4
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the truncated-ellipsoid parameters of Figure F2.3 have no published measurement equation in the cheatsheet"
+
+h2_ellipsoid_b:
+  description: "Head ellipsoid antero-posterior semi-axis b (Y)"
+  primitive: "ellipsoid"
+  parameter: "b"
+  segment: 2
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.head_max.depth_ap"
+  frame: "anatomical_local_head_neck"
+  confidence: 0.4
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the truncated-ellipsoid parameters of Figure F2.3 have no published measurement equation in the cheatsheet"
+
+h2_ellipsoid_c:
+  description: "Head ellipsoid longitudinal semi-axis c (Z, superior half)"
+  primitive: "ellipsoid"
+  parameter: "c"
+  segment: 2
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: null
+  frame: "anatomical_local_head_neck"
+  confidence: 0.3
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the truncated-ellipsoid parameters of Figure F2.3 have no published measurement equation in the cheatsheet"
+
+h2_truncation_k:
+  description: "Truncation height k of the ellipsoid above its inferior pole"
+  primitive: "ellipsoid"
+  parameter: "k"
+  segment: 2
+  unit: "m"
+  source: "manual"
+  bodyloop_path: null
+  frame: "anatomical_local_head_neck"
+  confidence: 0.15
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the truncated-ellipsoid parameters of Figure F2.3 have no published measurement equation in the cheatsheet"
+
+h2_neck_height_h:
+  description: "Height h of the neck cylinder, from the trunk boundary to the ellipsoid truncation plane"
+  primitive: "A1.1"
+  parameter: "h"
+  segment: 2
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: null
+  frame: "anatomical_local_head_neck"
+  confidence: 0.3
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the truncated-ellipsoid parameters of Figure F2.3 have no published measurement equation in the cheatsheet"
+
+h2_neck_a1:
+  description: "Neck cylinder medial-lateral semi-axis a1"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 2
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.neck.width_ml"
+  frame: "anatomical_local_head_neck"
+  confidence: 0.45
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the truncated-ellipsoid parameters of Figure F2.3 have no published measurement equation in the cheatsheet"
+
+h2_neck_b1:
+  description: "Neck cylinder antero-posterior semi-axis b1"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 2
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.neck.depth_ap"
+  frame: "anatomical_local_head_neck"
+  confidence: 0.45
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the truncated-ellipsoid parameters of Figure F2.3 have no published measurement equation in the cheatsheet"
+
+h2_head_length:
+  description: "Head-neck segment length, vertex to the trunk boundary"
+  primitive: "ellipsoid"
+  parameter: "l"
+  segment: 2
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "heights.vertex.value"
+  frame: "anatomical_local_head_neck"
+  confidence: 0.35
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the truncated-ellipsoid parameters of Figure F2.3 have no published measurement equation in the cheatsheet"
+
+# ==========================================================================
+# SEGMENTS 3 / 4 - LEFT / RIGHT SHOULDER (5 + 5)
+# Composite curved shape (Figure F2.4): angle theta, half-width 2b,
+# arc length d, inner volume semi-axis b1, height h.
+# ASSUMPTION: the decomposition of the shoulder composite into primitives
+# of Table A1 is NOT given by the cheatsheet; primitive is 'composite'.
+# ==========================================================================
+
+h3_theta:
+  description: "Inclination angle theta_3 of the left shoulder composite relative to the trunk frame"
+  primitive: "composite"
+  parameter: "theta"
+  segment: 3
+  unit: "rad"
+  source: "calculated"
+  bodyloop_path: "angles.shoulder_left_inclination.value"
+  frame: "anatomical_local_shoulder_left"
+  confidence: 0.2
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the shoulder boundary convention is itself PENDING - see SCIENCE_DECISIONS.md 'Segment boundary planes and the shoulder convention'"
+
+h3_half_width_b:
+  description: "Half-width b of the left shoulder composite (2b is the full width)"
+  primitive: "composite"
+  parameter: "b"
+  segment: 3
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.shoulder_left.width_ml"
+  frame: "anatomical_local_shoulder_left"
+  confidence: 0.4
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the shoulder boundary convention is itself PENDING - see SCIENCE_DECISIONS.md 'Segment boundary planes and the shoulder convention'"
+
+h3_arc_length_d:
+  description: "Arc length d of the left shoulder composite"
+  primitive: "composite"
+  parameter: "d"
+  segment: 3
+  unit: "m"
+  source: "manual"
+  bodyloop_path: null
+  frame: "anatomical_local_shoulder_left"
+  confidence: 0.2
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the shoulder boundary convention is itself PENDING - see SCIENCE_DECISIONS.md 'Segment boundary planes and the shoulder convention'"
+
+h3_inner_b1:
+  description: "Semi-axis b1 of the inner volume of the left shoulder composite"
+  primitive: "composite"
+  parameter: "b1"
+  segment: 3
+  unit: "m"
+  source: "manual"
+  bodyloop_path: null
+  frame: "anatomical_local_shoulder_left"
+  confidence: 0.15
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the shoulder boundary convention is itself PENDING - see SCIENCE_DECISIONS.md 'Segment boundary planes and the shoulder convention'"
+
+h3_height_h:
+  description: "Height h of the left shoulder composite, acromion to the auxiliary frame Z_h"
+  primitive: "composite"
+  parameter: "h"
+  segment: 3
+  unit: "m"
+  source: "manual"
+  bodyloop_path: null
+  frame: "anatomical_local_shoulder_left"
+  confidence: 0.25
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the shoulder boundary convention is itself PENDING - see SCIENCE_DECISIONS.md 'Segment boundary planes and the shoulder convention'"
+
+h4_theta:
+  description: "Inclination angle theta_4 of the right shoulder composite relative to the trunk frame"
+  primitive: "composite"
+  parameter: "theta"
+  segment: 4
+  unit: "rad"
+  source: "calculated"
+  bodyloop_path: "angles.shoulder_right_inclination.value"
+  frame: "anatomical_local_shoulder_right"
+  confidence: 0.2
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the shoulder boundary convention is itself PENDING - see SCIENCE_DECISIONS.md 'Segment boundary planes and the shoulder convention'"
+
+h4_half_width_b:
+  description: "Half-width b of the right shoulder composite (2b is the full width)"
+  primitive: "composite"
+  parameter: "b"
+  segment: 4
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.shoulder_right.width_ml"
+  frame: "anatomical_local_shoulder_right"
+  confidence: 0.4
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the shoulder boundary convention is itself PENDING - see SCIENCE_DECISIONS.md 'Segment boundary planes and the shoulder convention'"
+
+h4_arc_length_d:
+  description: "Arc length d of the right shoulder composite"
+  primitive: "composite"
+  parameter: "d"
+  segment: 4
+  unit: "m"
+  source: "manual"
+  bodyloop_path: null
+  frame: "anatomical_local_shoulder_right"
+  confidence: 0.2
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the shoulder boundary convention is itself PENDING - see SCIENCE_DECISIONS.md 'Segment boundary planes and the shoulder convention'"
+
+h4_inner_b1:
+  description: "Semi-axis b1 of the inner volume of the right shoulder composite"
+  primitive: "composite"
+  parameter: "b1"
+  segment: 4
+  unit: "m"
+  source: "manual"
+  bodyloop_path: null
+  frame: "anatomical_local_shoulder_right"
+  confidence: 0.15
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the shoulder boundary convention is itself PENDING - see SCIENCE_DECISIONS.md 'Segment boundary planes and the shoulder convention'"
+
+h4_height_h:
+  description: "Height h of the right shoulder composite, acromion to the auxiliary frame Z_h"
+  primitive: "composite"
+  parameter: "h"
+  segment: 4
+  unit: "m"
+  source: "manual"
+  bodyloop_path: null
+  frame: "anatomical_local_shoulder_right"
+  confidence: 0.25
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the shoulder boundary convention is itself PENDING - see SCIENCE_DECISIONS.md 'Segment boundary planes and the shoulder convention'"
+
+# ==========================================================================
+# SEGMENTS 5 / 6 - LEFT / RIGHT FOREARM (20 + 20)
+# 10 elliptic cross-sections of height l/10, origin at the DISTAL end.
+# Axis convention: a_i = AP (X), b_i = ML (Y) per Figure F2.5/F2.11;
+# see the A1.1 audit correction in docs/HATZE_EQUATIONS.md.
+# ==========================================================================
+
+h5_s01_ap:
+  description: "Left forearm cross-section 1 antero-posterior full width feeding the elliptic semi-axis a_1 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 5
+  slice: 1
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_forearm_level_01.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h5_s01_ml:
+  description: "Left forearm cross-section 1 medial-lateral full width feeding the elliptic semi-axis b_1 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 5
+  slice: 1
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_forearm_level_01.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h5_s02_ap:
+  description: "Left forearm cross-section 2 antero-posterior full width feeding the elliptic semi-axis a_2 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 5
+  slice: 2
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_forearm_level_02.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h5_s02_ml:
+  description: "Left forearm cross-section 2 medial-lateral full width feeding the elliptic semi-axis b_2 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 5
+  slice: 2
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_forearm_level_02.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h5_s03_ap:
+  description: "Left forearm cross-section 3 antero-posterior full width feeding the elliptic semi-axis a_3 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 5
+  slice: 3
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_forearm_level_03.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h5_s03_ml:
+  description: "Left forearm cross-section 3 medial-lateral full width feeding the elliptic semi-axis b_3 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 5
+  slice: 3
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_forearm_level_03.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h5_s04_ap:
+  description: "Left forearm cross-section 4 antero-posterior full width feeding the elliptic semi-axis a_4 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 5
+  slice: 4
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_forearm_level_04.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h5_s04_ml:
+  description: "Left forearm cross-section 4 medial-lateral full width feeding the elliptic semi-axis b_4 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 5
+  slice: 4
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_forearm_level_04.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h5_s05_ap:
+  description: "Left forearm cross-section 5 antero-posterior full width feeding the elliptic semi-axis a_5 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 5
+  slice: 5
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_forearm_level_05.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h5_s05_ml:
+  description: "Left forearm cross-section 5 medial-lateral full width feeding the elliptic semi-axis b_5 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 5
+  slice: 5
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_forearm_level_05.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h5_s06_ap:
+  description: "Left forearm cross-section 6 antero-posterior full width feeding the elliptic semi-axis a_6 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 5
+  slice: 6
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_forearm_level_06.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h5_s06_ml:
+  description: "Left forearm cross-section 6 medial-lateral full width feeding the elliptic semi-axis b_6 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 5
+  slice: 6
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_forearm_level_06.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h5_s07_ap:
+  description: "Left forearm cross-section 7 antero-posterior full width feeding the elliptic semi-axis a_7 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 5
+  slice: 7
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_forearm_level_07.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h5_s07_ml:
+  description: "Left forearm cross-section 7 medial-lateral full width feeding the elliptic semi-axis b_7 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 5
+  slice: 7
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_forearm_level_07.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h5_s08_ap:
+  description: "Left forearm cross-section 8 antero-posterior full width feeding the elliptic semi-axis a_8 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 5
+  slice: 8
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_forearm_level_08.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h5_s08_ml:
+  description: "Left forearm cross-section 8 medial-lateral full width feeding the elliptic semi-axis b_8 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 5
+  slice: 8
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_forearm_level_08.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h5_s09_ap:
+  description: "Left forearm cross-section 9 antero-posterior full width feeding the elliptic semi-axis a_9 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 5
+  slice: 9
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_forearm_level_09.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h5_s09_ml:
+  description: "Left forearm cross-section 9 medial-lateral full width feeding the elliptic semi-axis b_9 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 5
+  slice: 9
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_forearm_level_09.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h5_s10_ap:
+  description: "Left forearm cross-section 10 antero-posterior full width feeding the elliptic semi-axis a_10 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 5
+  slice: 10
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_forearm_level_10.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h5_s10_ml:
+  description: "Left forearm cross-section 10 medial-lateral full width feeding the elliptic semi-axis b_10 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 5
+  slice: 10
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_forearm_level_10.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h6_s01_ap:
+  description: "Right forearm cross-section 1 antero-posterior full width feeding the elliptic semi-axis a_1 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 6
+  slice: 1
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_forearm_level_01.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h6_s01_ml:
+  description: "Right forearm cross-section 1 medial-lateral full width feeding the elliptic semi-axis b_1 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 6
+  slice: 1
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_forearm_level_01.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h6_s02_ap:
+  description: "Right forearm cross-section 2 antero-posterior full width feeding the elliptic semi-axis a_2 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 6
+  slice: 2
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_forearm_level_02.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h6_s02_ml:
+  description: "Right forearm cross-section 2 medial-lateral full width feeding the elliptic semi-axis b_2 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 6
+  slice: 2
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_forearm_level_02.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h6_s03_ap:
+  description: "Right forearm cross-section 3 antero-posterior full width feeding the elliptic semi-axis a_3 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 6
+  slice: 3
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_forearm_level_03.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h6_s03_ml:
+  description: "Right forearm cross-section 3 medial-lateral full width feeding the elliptic semi-axis b_3 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 6
+  slice: 3
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_forearm_level_03.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h6_s04_ap:
+  description: "Right forearm cross-section 4 antero-posterior full width feeding the elliptic semi-axis a_4 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 6
+  slice: 4
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_forearm_level_04.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h6_s04_ml:
+  description: "Right forearm cross-section 4 medial-lateral full width feeding the elliptic semi-axis b_4 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 6
+  slice: 4
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_forearm_level_04.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h6_s05_ap:
+  description: "Right forearm cross-section 5 antero-posterior full width feeding the elliptic semi-axis a_5 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 6
+  slice: 5
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_forearm_level_05.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h6_s05_ml:
+  description: "Right forearm cross-section 5 medial-lateral full width feeding the elliptic semi-axis b_5 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 6
+  slice: 5
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_forearm_level_05.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h6_s06_ap:
+  description: "Right forearm cross-section 6 antero-posterior full width feeding the elliptic semi-axis a_6 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 6
+  slice: 6
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_forearm_level_06.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h6_s06_ml:
+  description: "Right forearm cross-section 6 medial-lateral full width feeding the elliptic semi-axis b_6 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 6
+  slice: 6
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_forearm_level_06.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h6_s07_ap:
+  description: "Right forearm cross-section 7 antero-posterior full width feeding the elliptic semi-axis a_7 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 6
+  slice: 7
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_forearm_level_07.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h6_s07_ml:
+  description: "Right forearm cross-section 7 medial-lateral full width feeding the elliptic semi-axis b_7 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 6
+  slice: 7
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_forearm_level_07.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h6_s08_ap:
+  description: "Right forearm cross-section 8 antero-posterior full width feeding the elliptic semi-axis a_8 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 6
+  slice: 8
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_forearm_level_08.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h6_s08_ml:
+  description: "Right forearm cross-section 8 medial-lateral full width feeding the elliptic semi-axis b_8 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 6
+  slice: 8
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_forearm_level_08.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h6_s09_ap:
+  description: "Right forearm cross-section 9 antero-posterior full width feeding the elliptic semi-axis a_9 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 6
+  slice: 9
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_forearm_level_09.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h6_s09_ml:
+  description: "Right forearm cross-section 9 medial-lateral full width feeding the elliptic semi-axis b_9 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 6
+  slice: 9
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_forearm_level_09.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h6_s10_ap:
+  description: "Right forearm cross-section 10 antero-posterior full width feeding the elliptic semi-axis a_10 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 6
+  slice: 10
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_forearm_level_10.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h6_s10_ml:
+  description: "Right forearm cross-section 10 medial-lateral full width feeding the elliptic semi-axis b_10 (Figure F2.6)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 6
+  slice: 10
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_forearm_level_10.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+# ==========================================================================
+# SEGMENTS 7 / 8 - LEFT / RIGHT UPPER ARM (20 + 20)
+# 10 elliptic cross-sections of height l/10, origin at the DISTAL end.
+# Axis convention: a_i = AP (X), b_i = ML (Y) per Figure F2.5/F2.11;
+# see the A1.1 audit correction in docs/HATZE_EQUATIONS.md.
+# ==========================================================================
+
+h7_s01_ap:
+  description: "Left upper arm cross-section 1 antero-posterior full width feeding the elliptic semi-axis a_1 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 7
+  slice: 1
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_upperarm_level_01.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h7_s01_ml:
+  description: "Left upper arm cross-section 1 medial-lateral full width feeding the elliptic semi-axis b_1 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 7
+  slice: 1
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_upperarm_level_01.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h7_s02_ap:
+  description: "Left upper arm cross-section 2 antero-posterior full width feeding the elliptic semi-axis a_2 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 7
+  slice: 2
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_upperarm_level_02.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h7_s02_ml:
+  description: "Left upper arm cross-section 2 medial-lateral full width feeding the elliptic semi-axis b_2 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 7
+  slice: 2
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_upperarm_level_02.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h7_s03_ap:
+  description: "Left upper arm cross-section 3 antero-posterior full width feeding the elliptic semi-axis a_3 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 7
+  slice: 3
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_upperarm_level_03.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h7_s03_ml:
+  description: "Left upper arm cross-section 3 medial-lateral full width feeding the elliptic semi-axis b_3 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 7
+  slice: 3
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_upperarm_level_03.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h7_s04_ap:
+  description: "Left upper arm cross-section 4 antero-posterior full width feeding the elliptic semi-axis a_4 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 7
+  slice: 4
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_upperarm_level_04.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h7_s04_ml:
+  description: "Left upper arm cross-section 4 medial-lateral full width feeding the elliptic semi-axis b_4 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 7
+  slice: 4
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_upperarm_level_04.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h7_s05_ap:
+  description: "Left upper arm cross-section 5 antero-posterior full width feeding the elliptic semi-axis a_5 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 7
+  slice: 5
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_upperarm_level_05.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h7_s05_ml:
+  description: "Left upper arm cross-section 5 medial-lateral full width feeding the elliptic semi-axis b_5 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 7
+  slice: 5
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_upperarm_level_05.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h7_s06_ap:
+  description: "Left upper arm cross-section 6 antero-posterior full width feeding the elliptic semi-axis a_6 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 7
+  slice: 6
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_upperarm_level_06.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h7_s06_ml:
+  description: "Left upper arm cross-section 6 medial-lateral full width feeding the elliptic semi-axis b_6 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 7
+  slice: 6
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_upperarm_level_06.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h7_s07_ap:
+  description: "Left upper arm cross-section 7 antero-posterior full width feeding the elliptic semi-axis a_7 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 7
+  slice: 7
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_upperarm_level_07.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h7_s07_ml:
+  description: "Left upper arm cross-section 7 medial-lateral full width feeding the elliptic semi-axis b_7 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 7
+  slice: 7
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_upperarm_level_07.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h7_s08_ap:
+  description: "Left upper arm cross-section 8 antero-posterior full width feeding the elliptic semi-axis a_8 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 7
+  slice: 8
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_upperarm_level_08.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h7_s08_ml:
+  description: "Left upper arm cross-section 8 medial-lateral full width feeding the elliptic semi-axis b_8 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 7
+  slice: 8
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_upperarm_level_08.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h7_s09_ap:
+  description: "Left upper arm cross-section 9 antero-posterior full width feeding the elliptic semi-axis a_9 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 7
+  slice: 9
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_upperarm_level_09.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h7_s09_ml:
+  description: "Left upper arm cross-section 9 medial-lateral full width feeding the elliptic semi-axis b_9 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 7
+  slice: 9
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_upperarm_level_09.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h7_s10_ap:
+  description: "Left upper arm cross-section 10 antero-posterior full width feeding the elliptic semi-axis a_10 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 7
+  slice: 10
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_upperarm_level_10.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h7_s10_ml:
+  description: "Left upper arm cross-section 10 medial-lateral full width feeding the elliptic semi-axis b_10 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 7
+  slice: 10
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_upperarm_level_10.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h8_s01_ap:
+  description: "Right upper arm cross-section 1 antero-posterior full width feeding the elliptic semi-axis a_1 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 8
+  slice: 1
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_upperarm_level_01.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h8_s01_ml:
+  description: "Right upper arm cross-section 1 medial-lateral full width feeding the elliptic semi-axis b_1 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 8
+  slice: 1
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_upperarm_level_01.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h8_s02_ap:
+  description: "Right upper arm cross-section 2 antero-posterior full width feeding the elliptic semi-axis a_2 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 8
+  slice: 2
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_upperarm_level_02.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h8_s02_ml:
+  description: "Right upper arm cross-section 2 medial-lateral full width feeding the elliptic semi-axis b_2 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 8
+  slice: 2
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_upperarm_level_02.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h8_s03_ap:
+  description: "Right upper arm cross-section 3 antero-posterior full width feeding the elliptic semi-axis a_3 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 8
+  slice: 3
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_upperarm_level_03.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h8_s03_ml:
+  description: "Right upper arm cross-section 3 medial-lateral full width feeding the elliptic semi-axis b_3 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 8
+  slice: 3
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_upperarm_level_03.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h8_s04_ap:
+  description: "Right upper arm cross-section 4 antero-posterior full width feeding the elliptic semi-axis a_4 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 8
+  slice: 4
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_upperarm_level_04.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h8_s04_ml:
+  description: "Right upper arm cross-section 4 medial-lateral full width feeding the elliptic semi-axis b_4 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 8
+  slice: 4
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_upperarm_level_04.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h8_s05_ap:
+  description: "Right upper arm cross-section 5 antero-posterior full width feeding the elliptic semi-axis a_5 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 8
+  slice: 5
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_upperarm_level_05.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h8_s05_ml:
+  description: "Right upper arm cross-section 5 medial-lateral full width feeding the elliptic semi-axis b_5 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 8
+  slice: 5
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_upperarm_level_05.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h8_s06_ap:
+  description: "Right upper arm cross-section 6 antero-posterior full width feeding the elliptic semi-axis a_6 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 8
+  slice: 6
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_upperarm_level_06.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h8_s06_ml:
+  description: "Right upper arm cross-section 6 medial-lateral full width feeding the elliptic semi-axis b_6 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 8
+  slice: 6
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_upperarm_level_06.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h8_s07_ap:
+  description: "Right upper arm cross-section 7 antero-posterior full width feeding the elliptic semi-axis a_7 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 8
+  slice: 7
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_upperarm_level_07.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h8_s07_ml:
+  description: "Right upper arm cross-section 7 medial-lateral full width feeding the elliptic semi-axis b_7 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 8
+  slice: 7
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_upperarm_level_07.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h8_s08_ap:
+  description: "Right upper arm cross-section 8 antero-posterior full width feeding the elliptic semi-axis a_8 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 8
+  slice: 8
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_upperarm_level_08.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h8_s08_ml:
+  description: "Right upper arm cross-section 8 medial-lateral full width feeding the elliptic semi-axis b_8 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 8
+  slice: 8
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_upperarm_level_08.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h8_s09_ap:
+  description: "Right upper arm cross-section 9 antero-posterior full width feeding the elliptic semi-axis a_9 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 8
+  slice: 9
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_upperarm_level_09.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h8_s09_ml:
+  description: "Right upper arm cross-section 9 medial-lateral full width feeding the elliptic semi-axis b_9 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 8
+  slice: 9
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_upperarm_level_09.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h8_s10_ap:
+  description: "Right upper arm cross-section 10 antero-posterior full width feeding the elliptic semi-axis a_10 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 8
+  slice: 10
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_upperarm_level_10.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h8_s10_ml:
+  description: "Right upper arm cross-section 10 medial-lateral full width feeding the elliptic semi-axis b_10 (Figure F2.5)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 8
+  slice: 10
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_upperarm_level_10.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+# ==========================================================================
+# SEGMENTS 12 / 15 - RIGHT / LEFT THIGH (20 + 20)
+# 10 elliptic cross-sections of height l/10, origin at the DISTAL end.
+# Axis convention: a_i = AP (X), b_i = ML (Y) per Figure F2.5/F2.11;
+# see the A1.1 audit correction in docs/HATZE_EQUATIONS.md.
+# ==========================================================================
+
+h12_s01_ap:
+  description: "Right thigh cross-section 1 antero-posterior full width feeding the elliptic semi-axis a_1 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 12
+  slice: 1
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_thigh_level_01.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h12_s01_ml:
+  description: "Right thigh cross-section 1 medial-lateral full width feeding the elliptic semi-axis b_1 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 12
+  slice: 1
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_thigh_level_01.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h12_s02_ap:
+  description: "Right thigh cross-section 2 antero-posterior full width feeding the elliptic semi-axis a_2 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 12
+  slice: 2
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_thigh_level_02.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h12_s02_ml:
+  description: "Right thigh cross-section 2 medial-lateral full width feeding the elliptic semi-axis b_2 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 12
+  slice: 2
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_thigh_level_02.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h12_s03_ap:
+  description: "Right thigh cross-section 3 antero-posterior full width feeding the elliptic semi-axis a_3 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 12
+  slice: 3
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_thigh_level_03.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h12_s03_ml:
+  description: "Right thigh cross-section 3 medial-lateral full width feeding the elliptic semi-axis b_3 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 12
+  slice: 3
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_thigh_level_03.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h12_s04_ap:
+  description: "Right thigh cross-section 4 antero-posterior full width feeding the elliptic semi-axis a_4 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 12
+  slice: 4
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_thigh_level_04.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h12_s04_ml:
+  description: "Right thigh cross-section 4 medial-lateral full width feeding the elliptic semi-axis b_4 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 12
+  slice: 4
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_thigh_level_04.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h12_s05_ap:
+  description: "Right thigh cross-section 5 antero-posterior full width feeding the elliptic semi-axis a_5 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 12
+  slice: 5
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_thigh_level_05.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h12_s05_ml:
+  description: "Right thigh cross-section 5 medial-lateral full width feeding the elliptic semi-axis b_5 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 12
+  slice: 5
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_thigh_level_05.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h12_s06_ap:
+  description: "Right thigh cross-section 6 antero-posterior full width feeding the elliptic semi-axis a_6 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 12
+  slice: 6
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_thigh_level_06.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h12_s06_ml:
+  description: "Right thigh cross-section 6 medial-lateral full width feeding the elliptic semi-axis b_6 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 12
+  slice: 6
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_thigh_level_06.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h12_s07_ap:
+  description: "Right thigh cross-section 7 antero-posterior full width feeding the elliptic semi-axis a_7 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 12
+  slice: 7
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_thigh_level_07.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h12_s07_ml:
+  description: "Right thigh cross-section 7 medial-lateral full width feeding the elliptic semi-axis b_7 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 12
+  slice: 7
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_thigh_level_07.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h12_s08_ap:
+  description: "Right thigh cross-section 8 antero-posterior full width feeding the elliptic semi-axis a_8 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 12
+  slice: 8
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_thigh_level_08.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h12_s08_ml:
+  description: "Right thigh cross-section 8 medial-lateral full width feeding the elliptic semi-axis b_8 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 12
+  slice: 8
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_thigh_level_08.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h12_s09_ap:
+  description: "Right thigh cross-section 9 antero-posterior full width feeding the elliptic semi-axis a_9 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 12
+  slice: 9
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_thigh_level_09.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h12_s09_ml:
+  description: "Right thigh cross-section 9 medial-lateral full width feeding the elliptic semi-axis b_9 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 12
+  slice: 9
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_thigh_level_09.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h12_s10_ap:
+  description: "Right thigh cross-section 10 antero-posterior full width feeding the elliptic semi-axis a_10 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 12
+  slice: 10
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_thigh_level_10.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h12_s10_ml:
+  description: "Right thigh cross-section 10 medial-lateral full width feeding the elliptic semi-axis b_10 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 12
+  slice: 10
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_thigh_level_10.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h15_s01_ap:
+  description: "Left thigh cross-section 1 antero-posterior full width feeding the elliptic semi-axis a_1 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 15
+  slice: 1
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_thigh_level_01.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h15_s01_ml:
+  description: "Left thigh cross-section 1 medial-lateral full width feeding the elliptic semi-axis b_1 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 15
+  slice: 1
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_thigh_level_01.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h15_s02_ap:
+  description: "Left thigh cross-section 2 antero-posterior full width feeding the elliptic semi-axis a_2 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 15
+  slice: 2
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_thigh_level_02.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h15_s02_ml:
+  description: "Left thigh cross-section 2 medial-lateral full width feeding the elliptic semi-axis b_2 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 15
+  slice: 2
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_thigh_level_02.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h15_s03_ap:
+  description: "Left thigh cross-section 3 antero-posterior full width feeding the elliptic semi-axis a_3 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 15
+  slice: 3
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_thigh_level_03.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h15_s03_ml:
+  description: "Left thigh cross-section 3 medial-lateral full width feeding the elliptic semi-axis b_3 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 15
+  slice: 3
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_thigh_level_03.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h15_s04_ap:
+  description: "Left thigh cross-section 4 antero-posterior full width feeding the elliptic semi-axis a_4 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 15
+  slice: 4
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_thigh_level_04.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h15_s04_ml:
+  description: "Left thigh cross-section 4 medial-lateral full width feeding the elliptic semi-axis b_4 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 15
+  slice: 4
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_thigh_level_04.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h15_s05_ap:
+  description: "Left thigh cross-section 5 antero-posterior full width feeding the elliptic semi-axis a_5 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 15
+  slice: 5
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_thigh_level_05.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h15_s05_ml:
+  description: "Left thigh cross-section 5 medial-lateral full width feeding the elliptic semi-axis b_5 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 15
+  slice: 5
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_thigh_level_05.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h15_s06_ap:
+  description: "Left thigh cross-section 6 antero-posterior full width feeding the elliptic semi-axis a_6 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 15
+  slice: 6
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_thigh_level_06.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h15_s06_ml:
+  description: "Left thigh cross-section 6 medial-lateral full width feeding the elliptic semi-axis b_6 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 15
+  slice: 6
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_thigh_level_06.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h15_s07_ap:
+  description: "Left thigh cross-section 7 antero-posterior full width feeding the elliptic semi-axis a_7 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 15
+  slice: 7
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_thigh_level_07.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h15_s07_ml:
+  description: "Left thigh cross-section 7 medial-lateral full width feeding the elliptic semi-axis b_7 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 15
+  slice: 7
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_thigh_level_07.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h15_s08_ap:
+  description: "Left thigh cross-section 8 antero-posterior full width feeding the elliptic semi-axis a_8 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 15
+  slice: 8
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_thigh_level_08.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h15_s08_ml:
+  description: "Left thigh cross-section 8 medial-lateral full width feeding the elliptic semi-axis b_8 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 15
+  slice: 8
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_thigh_level_08.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h15_s09_ap:
+  description: "Left thigh cross-section 9 antero-posterior full width feeding the elliptic semi-axis a_9 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 15
+  slice: 9
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_thigh_level_09.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h15_s09_ml:
+  description: "Left thigh cross-section 9 medial-lateral full width feeding the elliptic semi-axis b_9 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 15
+  slice: 9
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_thigh_level_09.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h15_s10_ap:
+  description: "Left thigh cross-section 10 antero-posterior full width feeding the elliptic semi-axis a_10 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 15
+  slice: 10
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_thigh_level_10.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h15_s10_ml:
+  description: "Left thigh cross-section 10 medial-lateral full width feeding the elliptic semi-axis b_10 (Figure F2.11)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 15
+  slice: 10
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_thigh_level_10.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+# ==========================================================================
+# SEGMENTS 13 / 16 - RIGHT / LEFT SHANK (20 + 20)
+# 10 elliptic cross-sections of height l/10, origin at the DISTAL end.
+# Axis convention: a_i = AP (X), b_i = ML (Y) per Figure F2.5/F2.11;
+# see the A1.1 audit correction in docs/HATZE_EQUATIONS.md.
+# ==========================================================================
+
+h13_s01_ap:
+  description: "Right shank cross-section 1 antero-posterior full width feeding the elliptic semi-axis a_1 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 13
+  slice: 1
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_shank_level_01.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks; the distal shank cross-section is CIRCULAR in Hatze's model (radius r), so a_1 and b_1 must agree - TODO_VALIDATE the consistency check"
+
+h13_s01_ml:
+  description: "Right shank cross-section 1 medial-lateral full width feeding the elliptic semi-axis b_1 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 13
+  slice: 1
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_shank_level_01.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks; the distal shank cross-section is CIRCULAR in Hatze's model (radius r), so a_1 and b_1 must agree - TODO_VALIDATE the consistency check"
+
+h13_s02_ap:
+  description: "Right shank cross-section 2 antero-posterior full width feeding the elliptic semi-axis a_2 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 13
+  slice: 2
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_shank_level_02.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h13_s02_ml:
+  description: "Right shank cross-section 2 medial-lateral full width feeding the elliptic semi-axis b_2 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 13
+  slice: 2
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_shank_level_02.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h13_s03_ap:
+  description: "Right shank cross-section 3 antero-posterior full width feeding the elliptic semi-axis a_3 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 13
+  slice: 3
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_shank_level_03.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h13_s03_ml:
+  description: "Right shank cross-section 3 medial-lateral full width feeding the elliptic semi-axis b_3 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 13
+  slice: 3
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_shank_level_03.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h13_s04_ap:
+  description: "Right shank cross-section 4 antero-posterior full width feeding the elliptic semi-axis a_4 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 13
+  slice: 4
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_shank_level_04.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h13_s04_ml:
+  description: "Right shank cross-section 4 medial-lateral full width feeding the elliptic semi-axis b_4 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 13
+  slice: 4
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_shank_level_04.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h13_s05_ap:
+  description: "Right shank cross-section 5 antero-posterior full width feeding the elliptic semi-axis a_5 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 13
+  slice: 5
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_shank_level_05.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h13_s05_ml:
+  description: "Right shank cross-section 5 medial-lateral full width feeding the elliptic semi-axis b_5 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 13
+  slice: 5
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_shank_level_05.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h13_s06_ap:
+  description: "Right shank cross-section 6 antero-posterior full width feeding the elliptic semi-axis a_6 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 13
+  slice: 6
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_shank_level_06.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h13_s06_ml:
+  description: "Right shank cross-section 6 medial-lateral full width feeding the elliptic semi-axis b_6 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 13
+  slice: 6
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_shank_level_06.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h13_s07_ap:
+  description: "Right shank cross-section 7 antero-posterior full width feeding the elliptic semi-axis a_7 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 13
+  slice: 7
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_shank_level_07.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h13_s07_ml:
+  description: "Right shank cross-section 7 medial-lateral full width feeding the elliptic semi-axis b_7 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 13
+  slice: 7
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_shank_level_07.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h13_s08_ap:
+  description: "Right shank cross-section 8 antero-posterior full width feeding the elliptic semi-axis a_8 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 13
+  slice: 8
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_shank_level_08.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h13_s08_ml:
+  description: "Right shank cross-section 8 medial-lateral full width feeding the elliptic semi-axis b_8 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 13
+  slice: 8
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_shank_level_08.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h13_s09_ap:
+  description: "Right shank cross-section 9 antero-posterior full width feeding the elliptic semi-axis a_9 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 13
+  slice: 9
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_shank_level_09.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h13_s09_ml:
+  description: "Right shank cross-section 9 medial-lateral full width feeding the elliptic semi-axis b_9 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 13
+  slice: 9
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_shank_level_09.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h13_s10_ap:
+  description: "Right shank cross-section 10 antero-posterior full width feeding the elliptic semi-axis a_10 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 13
+  slice: 10
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_shank_level_10.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h13_s10_ml:
+  description: "Right shank cross-section 10 medial-lateral full width feeding the elliptic semi-axis b_10 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 13
+  slice: 10
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_shank_level_10.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h16_s01_ap:
+  description: "Left shank cross-section 1 antero-posterior full width feeding the elliptic semi-axis a_1 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 16
+  slice: 1
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_shank_level_01.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks; the distal shank cross-section is CIRCULAR in Hatze's model (radius r), so a_1 and b_1 must agree - TODO_VALIDATE the consistency check"
+
+h16_s01_ml:
+  description: "Left shank cross-section 1 medial-lateral full width feeding the elliptic semi-axis b_1 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 16
+  slice: 1
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_shank_level_01.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks; the distal shank cross-section is CIRCULAR in Hatze's model (radius r), so a_1 and b_1 must agree - TODO_VALIDATE the consistency check"
+
+h16_s02_ap:
+  description: "Left shank cross-section 2 antero-posterior full width feeding the elliptic semi-axis a_2 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 16
+  slice: 2
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_shank_level_02.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h16_s02_ml:
+  description: "Left shank cross-section 2 medial-lateral full width feeding the elliptic semi-axis b_2 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 16
+  slice: 2
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_shank_level_02.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h16_s03_ap:
+  description: "Left shank cross-section 3 antero-posterior full width feeding the elliptic semi-axis a_3 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 16
+  slice: 3
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_shank_level_03.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h16_s03_ml:
+  description: "Left shank cross-section 3 medial-lateral full width feeding the elliptic semi-axis b_3 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 16
+  slice: 3
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_shank_level_03.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h16_s04_ap:
+  description: "Left shank cross-section 4 antero-posterior full width feeding the elliptic semi-axis a_4 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 16
+  slice: 4
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_shank_level_04.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h16_s04_ml:
+  description: "Left shank cross-section 4 medial-lateral full width feeding the elliptic semi-axis b_4 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 16
+  slice: 4
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_shank_level_04.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h16_s05_ap:
+  description: "Left shank cross-section 5 antero-posterior full width feeding the elliptic semi-axis a_5 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 16
+  slice: 5
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_shank_level_05.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h16_s05_ml:
+  description: "Left shank cross-section 5 medial-lateral full width feeding the elliptic semi-axis b_5 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 16
+  slice: 5
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_shank_level_05.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h16_s06_ap:
+  description: "Left shank cross-section 6 antero-posterior full width feeding the elliptic semi-axis a_6 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 16
+  slice: 6
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_shank_level_06.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h16_s06_ml:
+  description: "Left shank cross-section 6 medial-lateral full width feeding the elliptic semi-axis b_6 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 16
+  slice: 6
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_shank_level_06.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h16_s07_ap:
+  description: "Left shank cross-section 7 antero-posterior full width feeding the elliptic semi-axis a_7 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 16
+  slice: 7
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_shank_level_07.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h16_s07_ml:
+  description: "Left shank cross-section 7 medial-lateral full width feeding the elliptic semi-axis b_7 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 16
+  slice: 7
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_shank_level_07.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h16_s08_ap:
+  description: "Left shank cross-section 8 antero-posterior full width feeding the elliptic semi-axis a_8 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 16
+  slice: 8
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_shank_level_08.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h16_s08_ml:
+  description: "Left shank cross-section 8 medial-lateral full width feeding the elliptic semi-axis b_8 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 16
+  slice: 8
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_shank_level_08.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h16_s09_ap:
+  description: "Left shank cross-section 9 antero-posterior full width feeding the elliptic semi-axis a_9 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 16
+  slice: 9
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_shank_level_09.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h16_s09_ml:
+  description: "Left shank cross-section 9 medial-lateral full width feeding the elliptic semi-axis b_9 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 16
+  slice: 9
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_shank_level_09.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h16_s10_ap:
+  description: "Left shank cross-section 10 antero-posterior full width feeding the elliptic semi-axis a_10 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "a"
+  segment: 16
+  slice: 10
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_shank_level_10.depth_ap"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+h16_s10_ml:
+  description: "Left shank cross-section 10 medial-lateral full width feeding the elliptic semi-axis b_10 (Figure F2.12)"
+  primitive: "A1.1"
+  parameter: "b"
+  segment: 16
+  slice: 10
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_shank_level_10.width_ml"
+  frame: "bodyloop_global"
+  confidence: 0.7
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; slice boundaries are at l/10 from the distal origin and are not BodyLoop landmarks"
+
+# ==========================================================================
+# SEGMENTS 9 / 10 - LEFT / RIGHT HAND (8 + 8)
+# Ellipto-parabolic hoof (A1.9, arc length 0.378h) plus a parabolic plate
+# (A1.2) for the fingers, rotated by theta.  Figure F2.7.
+# A1.9 axis convention: a = X (parabolic taper), b = Y, h = Z.
+# ==========================================================================
+
+h9_hoof_a:
+  description: "Hoof semi-axis a (X) of the left palm"
+  primitive: "A1.9"
+  parameter: "a"
+  segment: 9
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.left_hand_palm.depth_ap"
+  frame: "anatomical_local_hand_left"
+  confidence: 0.4
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the 0.378h arc-length proportion of Figure F2.7 is reported without derivation and must be checked against Hatze (1979)"
+
+h9_hoof_b:
+  description: "Hoof semi-axis b (Y) of the left palm (half of the palm width 2b)"
+  primitive: "A1.9"
+  parameter: "b"
+  segment: 9
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.left_hand_palm.width_ml"
+  frame: "anatomical_local_hand_left"
+  confidence: 0.4
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the 0.378h arc-length proportion of Figure F2.7 is reported without derivation and must be checked against Hatze (1979)"
+
+h9_hoof_h:
+  description: "Hoof height h of the left palm, wrist to the metacarpal heads"
+  primitive: "A1.9"
+  parameter: "h"
+  segment: 9
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "distances.left_palm_length.value"
+  frame: "anatomical_local_hand_left"
+  confidence: 0.35
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the 0.378h arc-length proportion of Figure F2.7 is reported without derivation and must be checked against Hatze (1979)"
+
+h9_theta:
+  description: "Rotation angle theta of the left hand frame relative to the forearm frame"
+  primitive: "A1.9"
+  parameter: "theta"
+  segment: 9
+  unit: "rad"
+  source: "manual"
+  bodyloop_path: "angles.left_wrist_deviation.value"
+  frame: "anatomical_local_hand_left"
+  confidence: 0.15
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the 0.378h arc-length proportion of Figure F2.7 is reported without derivation and must be checked against Hatze (1979)"
+
+h9_plate_a:
+  description: "Parabolic plate semi-axis a (X) of the left finger block"
+  primitive: "A1.2"
+  parameter: "a"
+  segment: 9
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: null
+  frame: "anatomical_local_hand_left"
+  confidence: 0.2
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the 0.378h arc-length proportion of Figure F2.7 is reported without derivation and must be checked against Hatze (1979)"
+
+h9_plate_b:
+  description: "Parabolic plate semi-axis b (Y) of the left finger block"
+  primitive: "A1.2"
+  parameter: "b"
+  segment: 9
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: null
+  frame: "anatomical_local_hand_left"
+  confidence: 0.2
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the 0.378h arc-length proportion of Figure F2.7 is reported without derivation and must be checked against Hatze (1979)"
+
+h9_plate_h:
+  description: "Parabolic plate thickness h (Z) of the left finger block"
+  primitive: "A1.2"
+  parameter: "h"
+  segment: 9
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: null
+  frame: "anatomical_local_hand_left"
+  confidence: 0.2
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the 0.378h arc-length proportion of Figure F2.7 is reported without derivation and must be checked against Hatze (1979)"
+
+h9_wrist_b1:
+  description: "Semi-axis b1 of the left wrist cross-section, the proximal boundary of the hand"
+  primitive: "A1.1"
+  parameter: "b1"
+  segment: 9
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.left_wrist.width_ml"
+  frame: "anatomical_local_hand_left"
+  confidence: 0.45
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the 0.378h arc-length proportion of Figure F2.7 is reported without derivation and must be checked against Hatze (1979)"
+
+h10_hoof_a:
+  description: "Hoof semi-axis a (X) of the right palm"
+  primitive: "A1.9"
+  parameter: "a"
+  segment: 10
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.right_hand_palm.depth_ap"
+  frame: "anatomical_local_hand_right"
+  confidence: 0.4
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the 0.378h arc-length proportion of Figure F2.7 is reported without derivation and must be checked against Hatze (1979)"
+
+h10_hoof_b:
+  description: "Hoof semi-axis b (Y) of the right palm (half of the palm width 2b)"
+  primitive: "A1.9"
+  parameter: "b"
+  segment: 10
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.right_hand_palm.width_ml"
+  frame: "anatomical_local_hand_right"
+  confidence: 0.4
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the 0.378h arc-length proportion of Figure F2.7 is reported without derivation and must be checked against Hatze (1979)"
+
+h10_hoof_h:
+  description: "Hoof height h of the right palm, wrist to the metacarpal heads"
+  primitive: "A1.9"
+  parameter: "h"
+  segment: 10
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "distances.right_palm_length.value"
+  frame: "anatomical_local_hand_right"
+  confidence: 0.35
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the 0.378h arc-length proportion of Figure F2.7 is reported without derivation and must be checked against Hatze (1979)"
+
+h10_theta:
+  description: "Rotation angle theta of the right hand frame relative to the forearm frame"
+  primitive: "A1.9"
+  parameter: "theta"
+  segment: 10
+  unit: "rad"
+  source: "manual"
+  bodyloop_path: "angles.right_wrist_deviation.value"
+  frame: "anatomical_local_hand_right"
+  confidence: 0.15
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the 0.378h arc-length proportion of Figure F2.7 is reported without derivation and must be checked against Hatze (1979)"
+
+h10_plate_a:
+  description: "Parabolic plate semi-axis a (X) of the right finger block"
+  primitive: "A1.2"
+  parameter: "a"
+  segment: 10
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: null
+  frame: "anatomical_local_hand_right"
+  confidence: 0.2
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the 0.378h arc-length proportion of Figure F2.7 is reported without derivation and must be checked against Hatze (1979)"
+
+h10_plate_b:
+  description: "Parabolic plate semi-axis b (Y) of the right finger block"
+  primitive: "A1.2"
+  parameter: "b"
+  segment: 10
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: null
+  frame: "anatomical_local_hand_right"
+  confidence: 0.2
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the 0.378h arc-length proportion of Figure F2.7 is reported without derivation and must be checked against Hatze (1979)"
+
+h10_plate_h:
+  description: "Parabolic plate thickness h (Z) of the right finger block"
+  primitive: "A1.2"
+  parameter: "h"
+  segment: 10
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: null
+  frame: "anatomical_local_hand_right"
+  confidence: 0.2
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the 0.378h arc-length proportion of Figure F2.7 is reported without derivation and must be checked against Hatze (1979)"
+
+h10_wrist_b1:
+  description: "Semi-axis b1 of the right wrist cross-section, the proximal boundary of the hand"
+  primitive: "A1.1"
+  parameter: "b1"
+  segment: 10
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.right_wrist.width_ml"
+  frame: "anatomical_local_hand_right"
+  confidence: 0.45
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the 0.378h arc-length proportion of Figure F2.7 is reported without derivation and must be checked against Hatze (1979)"
+
+# ==========================================================================
+# SEGMENT 11 - ABDOMINO-PELVIC (12)
+# Composite with the proportional landmarks of Figures F2.8-F2.10:
+# 0.3l superior boundary, 0.437l centroid landmark, 0.7l distal neck,
+# 0.874l iliac crest, 0.037l pubic offset.
+# ASSUMPTION: the outer cross-section of Figure F2.10 is modelled by the
+# elliptic octoparaboloid A1.4 ('used for trunk and torso slices').  That
+# primitive is BLOCKED - its published coefficients are numerically wrong.
+# ==========================================================================
+
+h11_length_l:
+  description: "Abdomino-pelvic segment length l, hip joint centre level to the trunk boundary"
+  primitive: "composite"
+  parameter: "l"
+  segment: 11
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: null
+  frame: "anatomical_local_pelvis"
+  confidence: 0.3
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the proportional landmarks of Figures F2.8-F2.10 are stated without a measurement protocol"
+
+h11_s01_ml:  # BLOCKED primitive A1.4
+  description: "Pelvic outer cross-section 1 (inferior, 0.3l) medial-lateral full width feeding semi-axis a"
+  primitive: "A1.4"
+  parameter: "a"
+  segment: 11
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.pelvis_level_01.width_ml"
+  frame: "anatomical_local_pelvis"
+  confidence: 0.4
+  manual_validation_required: true
+  blocked: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: A1.4 primitive coefficients wrong - see validation/HATZE_PRIMITIVES_AUDIT.md. Do not use until Hatze (1979) primary source is verified."
+
+h11_s01_ap:  # BLOCKED primitive A1.4
+  description: "Pelvic outer cross-section 1 (inferior, 0.3l) antero-posterior full width feeding semi-axis b"
+  primitive: "A1.4"
+  parameter: "b"
+  segment: 11
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.pelvis_level_01.depth_ap"
+  frame: "anatomical_local_pelvis"
+  confidence: 0.4
+  manual_validation_required: true
+  blocked: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: A1.4 primitive coefficients wrong - see validation/HATZE_PRIMITIVES_AUDIT.md. Do not use until Hatze (1979) primary source is verified."
+
+h11_s02_ml:  # BLOCKED primitive A1.4
+  description: "Pelvic outer cross-section 2 (iliac crest, 0.874l) medial-lateral full width feeding semi-axis a"
+  primitive: "A1.4"
+  parameter: "a"
+  segment: 11
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.pelvis_level_02.width_ml"
+  frame: "anatomical_local_pelvis"
+  confidence: 0.4
+  manual_validation_required: true
+  blocked: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: A1.4 primitive coefficients wrong - see validation/HATZE_PRIMITIVES_AUDIT.md. Do not use until Hatze (1979) primary source is verified."
+
+h11_s02_ap:  # BLOCKED primitive A1.4
+  description: "Pelvic outer cross-section 2 (iliac crest, 0.874l) antero-posterior full width feeding semi-axis b"
+  primitive: "A1.4"
+  parameter: "b"
+  segment: 11
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: "crosssections.pelvis_level_02.depth_ap"
+  frame: "anatomical_local_pelvis"
+  confidence: 0.4
+  manual_validation_required: true
+  blocked: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: A1.4 primitive coefficients wrong - see validation/HATZE_PRIMITIVES_AUDIT.md. Do not use until Hatze (1979) primary source is verified."
+
+h11_inner_a:
+  description: "Inner cross-section dimension a_i of Figure F2.10"
+  primitive: "composite"
+  parameter: "a_i"
+  segment: 11
+  unit: "m"
+  source: "manual"
+  bodyloop_path: null
+  frame: "anatomical_local_pelvis"
+  confidence: 0.1
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the proportional landmarks of Figures F2.8-F2.10 are stated without a measurement protocol"
+
+h11_inner_b:
+  description: "Inner cross-section dimension b_i of Figure F2.10"
+  primitive: "composite"
+  parameter: "b_i"
+  segment: 11
+  unit: "m"
+  source: "manual"
+  bodyloop_path: null
+  frame: "anatomical_local_pelvis"
+  confidence: 0.1
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the proportional landmarks of Figures F2.8-F2.10 are stated without a measurement protocol"
+
+h11_offset_g:
+  description: "Antero-posterior offset g of the inner cross-section of Figure F2.10"
+  primitive: "composite"
+  parameter: "g"
+  segment: 11
+  unit: "m"
+  source: "manual"
+  bodyloop_path: null
+  frame: "anatomical_local_pelvis"
+  confidence: 0.1
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the proportional landmarks of Figures F2.8-F2.10 are stated without a measurement protocol"
+
+h11_iliac_crest_width:
+  description: "Full medial-lateral width 2ca_h at the iliac crest level (0.874l)"
+  primitive: "composite"
+  parameter: "2ca_h"
+  segment: 11
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "distances.iliac_crest_width.value"
+  frame: "anatomical_local_pelvis"
+  confidence: 0.6
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the proportional landmarks of Figures F2.8-F2.10 are stated without a measurement protocol"
+
+h11_hip_width:
+  description: "Full medial-lateral width at the hip joint centre level"
+  primitive: "composite"
+  parameter: "w"
+  segment: 11
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "distances.hip_width.value"
+  frame: "anatomical_local_pelvis"
+  confidence: 0.6
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the proportional landmarks of Figures F2.8-F2.10 are stated without a measurement protocol"
+
+h11_pubic_offset:
+  description: "Antero-posterior pubic offset, 0.037l below the symphysis level"
+  primitive: "composite"
+  parameter: "0.037l"
+  segment: 11
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: null
+  frame: "anatomical_local_pelvis"
+  confidence: 0.15
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the proportional landmarks of Figures F2.8-F2.10 are stated without a measurement protocol"
+
+h11_neck_level:
+  description: "Height of the distal neck O_11 of the pelvic segment, at 0.7l"
+  primitive: "composite"
+  parameter: "0.7l"
+  segment: 11
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: null
+  frame: "anatomical_local_pelvis"
+  confidence: 0.2
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the proportional landmarks of Figures F2.8-F2.10 are stated without a measurement protocol"
+
+# ==========================================================================
+# SEGMENTS 14 / 17 - RIGHT / LEFT FOOT (6 + 6)
+# Trapezoidal wedge plate (A1.8) in three l/3 regions.  Figure F2.13.
+# A1.8 audit: b and c are FULL widths, thickness is along Y, and the
+# printed inertias are thin-plate values missing M h^2 / 12 (about 8 %
+# error at a realistic foot thickness).
+# ==========================================================================
+
+h14_length_l:
+  description: "Right foot length l, heel to toe tip"
+  primitive: "A1.8"
+  parameter: "l"
+  segment: 14
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "distances.right_foot_length.value"
+  frame: "anatomical_local_foot_right"
+  confidence: 0.65
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the heel is not a BodyLoop landmark, and A1.8 is a thin-plate approximation (see validation/HATZE_PRIMITIVES_AUDIT.md)"
+
+h14_width_b:
+  description: "Right foot proximal FULL width b at the heel"
+  primitive: "A1.8"
+  parameter: "b"
+  segment: 14
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_foot_heel.width_ml"
+  frame: "anatomical_local_foot_right"
+  confidence: 0.6
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the heel is not a BodyLoop landmark, and A1.8 is a thin-plate approximation (see validation/HATZE_PRIMITIVES_AUDIT.md)"
+
+h14_width_c:
+  description: "Right foot distal FULL width c at the toes"
+  primitive: "A1.8"
+  parameter: "c"
+  segment: 14
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.right_foot_toe.width_ml"
+  frame: "anatomical_local_foot_right"
+  confidence: 0.55
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the heel is not a BodyLoop landmark, and A1.8 is a thin-plate approximation (see validation/HATZE_PRIMITIVES_AUDIT.md)"
+
+h14_height_h1:
+  description: "Right foot heel thickness h1"
+  primitive: "A1.8"
+  parameter: "h1"
+  segment: 14
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: null
+  frame: "anatomical_local_foot_right"
+  confidence: 0.25
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the heel is not a BodyLoop landmark, and A1.8 is a thin-plate approximation (see validation/HATZE_PRIMITIVES_AUDIT.md)"
+
+h14_height_h2:
+  description: "Right foot forefoot thickness h2"
+  primitive: "A1.8"
+  parameter: "h2"
+  segment: 14
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: null
+  frame: "anatomical_local_foot_right"
+  confidence: 0.25
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the heel is not a BodyLoop landmark, and A1.8 is a thin-plate approximation (see validation/HATZE_PRIMITIVES_AUDIT.md)"
+
+h14_theta:
+  description: "Rotation angle theta_14 of the right foot wedge relative to the segment frame Z"
+  primitive: "A1.8"
+  parameter: "theta"
+  segment: 14
+  unit: "rad"
+  source: "manual"
+  bodyloop_path: "angles.right_foot_inclination.value"
+  frame: "anatomical_local_foot_right"
+  confidence: 0.15
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the heel is not a BodyLoop landmark, and A1.8 is a thin-plate approximation (see validation/HATZE_PRIMITIVES_AUDIT.md)"
+
+h17_length_l:
+  description: "Left foot length l, heel to toe tip"
+  primitive: "A1.8"
+  parameter: "l"
+  segment: 17
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "distances.left_foot_length.value"
+  frame: "anatomical_local_foot_left"
+  confidence: 0.65
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the heel is not a BodyLoop landmark, and A1.8 is a thin-plate approximation (see validation/HATZE_PRIMITIVES_AUDIT.md)"
+
+h17_width_b:
+  description: "Left foot proximal FULL width b at the heel"
+  primitive: "A1.8"
+  parameter: "b"
+  segment: 17
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_foot_heel.width_ml"
+  frame: "anatomical_local_foot_left"
+  confidence: 0.6
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the heel is not a BodyLoop landmark, and A1.8 is a thin-plate approximation (see validation/HATZE_PRIMITIVES_AUDIT.md)"
+
+h17_width_c:
+  description: "Left foot distal FULL width c at the toes"
+  primitive: "A1.8"
+  parameter: "c"
+  segment: 17
+  unit: "m"
+  source: "direct"
+  bodyloop_path: "crosssections.left_foot_toe.width_ml"
+  frame: "anatomical_local_foot_left"
+  confidence: 0.55
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the heel is not a BodyLoop landmark, and A1.8 is a thin-plate approximation (see validation/HATZE_PRIMITIVES_AUDIT.md)"
+
+h17_height_h1:
+  description: "Left foot heel thickness h1"
+  primitive: "A1.8"
+  parameter: "h1"
+  segment: 17
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: null
+  frame: "anatomical_local_foot_left"
+  confidence: 0.25
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the heel is not a BodyLoop landmark, and A1.8 is a thin-plate approximation (see validation/HATZE_PRIMITIVES_AUDIT.md)"
+
+h17_height_h2:
+  description: "Left foot forefoot thickness h2"
+  primitive: "A1.8"
+  parameter: "h2"
+  segment: 17
+  unit: "m"
+  source: "calculated"
+  bodyloop_path: null
+  frame: "anatomical_local_foot_left"
+  confidence: 0.25
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the heel is not a BodyLoop landmark, and A1.8 is a thin-plate approximation (see validation/HATZE_PRIMITIVES_AUDIT.md)"
+
+h17_theta:
+  description: "Rotation angle theta_17 of the left foot wedge relative to the segment frame Z"
+  primitive: "A1.8"
+  parameter: "theta"
+  segment: 17
+  unit: "rad"
+  source: "manual"
+  bodyloop_path: "angles.left_foot_inclination.value"
+  frame: "anatomical_local_foot_left"
+  confidence: 0.15
+  manual_validation_required: true
+  path_note: "TODO_SCIENTIFIC: BodyLoop path vocabulary not confirmed"
+  notes: "TODO_SCIENTIFIC: mapping from cross-section to Hatze parameter requires Hatze (1979) section 3; the heel is not a BodyLoop landmark, and A1.8 is a thin-plate approximation (see validation/HATZE_PRIMITIVES_AUDIT.md)"
