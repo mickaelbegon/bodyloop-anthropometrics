@@ -1,0 +1,64 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Python
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+
+# Type checkers
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyright/
+
+# Linters
+.ruff_cache/
+
+# Testing and coverage
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Large binary data — GLB files only allowed in fixtures
+*.glb
+!tests/fixtures/**/*.glb
+
+# Compressed data
+*.zip
+*.tar.gz
+*.tar.bz2
+
+# Subject / scan data directories (never commit real data)
+data/
+subject_*/
+scans/
+exports/
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artefacts
+*.so
+*.dylib

@@ -1,0 +1,51 @@
+# Mapping BodyLoop measurements to Yeadon (1990) measurement keys
+# Version: 0.1.0
+# Reference: https://yeadon.readthedocs.io/en/latest/measurements.html
+#
+# Format per key:
+#   yeadon_key:
+#     bodyloop_path: null  # JSON path in normalised BodyLoop data, or null if not directly available
+#     source_type: null    # "direct" | "calculated" | "interpolated" | "external" | "manual"
+#     anatomical_definition: ""  # verbatim definition from Yeadon (1990)
+#     calculation: null    # formula or method description if not a direct measurement
+#     units: "m"
+#     confidence: 0.0      # 0.0 = unknown, 1.0 = direct measurement
+#     manual_validation_required: true
+#
+# TODO: populate all 95 Yeadon measurement keys.
+#       See https://yeadon.readthedocs.io/en/latest/measurements.html for the
+#       complete list.  Each key must be validated against the original
+#       publication: Yeadon, M.R. (1990). J Biomech 23(1):67-74.
+#
+# TODO_SCIENTIFIC: anatomical definitions must be confirmed against Yeadon (1990)
+#                  before any key is set to manual_validation_required: false.
+#                  See SCIENCE_DECISIONS.md.
+
+# --- Whole-body length ---
+
+Ls:  # Standing height (top of head to floor)
+  bodyloop_path: null  # TODO: e.g. "heights.standing_height"
+  source_type: null
+  anatomical_definition: "Standing height — top of vertex to floor."
+  calculation: null
+  units: "m"
+  confidence: 0.0
+  manual_validation_required: true
+
+# --- Trunk (s) segment measurements ---
+# TODO: add all trunk keys (Ls0 through Ls8) with bodyloop_path mappings
+
+# --- Head and neck (a) segment measurements ---
+# TODO: add La0 through La6
+
+# --- Right arm (b) segment measurements ---
+# TODO: add Lb0 through Lb6
+
+# --- Left arm (c) segment measurements ---
+# TODO: add Lc0 through Lc6
+
+# --- Right leg (j) segment measurements ---
+# TODO: add Lj0 through Lj9
+
+# --- Left leg (k) segment measurements ---
+# TODO: add Lk0 through Lk9

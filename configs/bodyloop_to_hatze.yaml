@@ -1,0 +1,44 @@
+# Mapping BodyLoop measurements to Hatze (1979/1980) segment parameters
+# Version: 0.1.0
+#
+# Primary references:
+#   Hatze, H. (1979). A model for the computational determination of parameter
+#     values of anthropomorphic segments. CSIR Technical Report TWISK 79.
+#   Hatze, H. (1980). A mathematical model for the computational determination
+#     of parameter values of anthropomorphic segments. J Biomech 13(10):833-843.
+#
+# WARNING: the hatze-biomech MATLAB reference implementation explicitly states
+#          that some equations are incomplete or incorrect.  Every entry in this
+#          file must be validated against the original CSIR Technical Report
+#          before use in research.  See SCIENCE_DECISIONS.md.
+#
+# Format per segment:
+#   segment_name:
+#     description: ""       # anatomical description of the segment
+#     measurements:
+#       hatze_key:
+#         bodyloop_path: null  # JSON path or null
+#         source_type: null
+#         anatomical_definition: ""
+#         units: "m"
+#         confidence: 0.0
+#         manual_validation_required: true
+#
+# TODO_SCIENTIFIC: define the 17 Hatze segments and all required measurement
+#                  keys from the original 1979 CSIR Technical Report.
+#                  See SCIENCE_DECISIONS.md.
+
+# --- Segment 1: Head ---
+head:
+  description: "Superior to the atlantooccipital joint."
+  measurements:
+    # TODO: populate head measurement keys from Hatze (1979)
+
+# --- Segment 2: Neck ---
+neck:
+  description: "Between atlantooccipital and C7/T1 joints."
+  measurements:
+    # TODO: populate neck measurement keys
+
+# --- Segments 3-17: trunk, arms, forearms, hands, thighs, shanks, feet ---
+# TODO: add all remaining 15 segments with measurement keys
