@@ -1,1 +1,1 @@
-"""Integration tests — may require BodyLoop API access."""
+"""Integration test suite for the bodyloop-anthropometrics pipeline."""
