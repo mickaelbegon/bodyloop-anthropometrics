@@ -23,6 +23,8 @@ Usage
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import click
 from rich.console import Console
 
@@ -307,6 +309,37 @@ def export_biorbd(path: str, output: str | None, model_name: str) -> None:
     raise NotImplementedError(
         f"export-biorbd is not yet implemented for path={path!r}."
     )
+
+
+@cli.command("visualize-measurements")
+@click.argument("acquisition_dir", type=click.Path(exists=True, path_type=Path))
+@click.option(
+    "--model",
+    type=click.Choice(["yeadon", "hatze"]),
+    default="yeadon",
+    show_default=True,
+    help="Anthropometric model whose measurements to display.",
+)
+@click.option(
+    "--port",
+    type=int,
+    default=8051,
+    show_default=True,
+    help="Local port for the Dash server.",
+)
+def visualize_measurements(acquisition_dir: Path, model: str, port: int) -> None:
+    """Launch interactive 3D viewer for measurement validation.
+
+    Opens a browser-based viewer showing the body mesh with annotated
+    measurement lines. Approve or reject each measurement flagged for
+    manual validation. Results are auto-saved to normalized/.
+
+    ACQUISITION_DIR is the acquisition root directory, expected to contain
+    raw/mesh_3d.glb and normalized/<model>_measurements.json.
+    """
+    from bodyloop_anthropometrics.visualization.measurement_viewer import run_viewer
+
+    run_viewer(acquisition_dir=acquisition_dir, model=model, port=port)  # type: ignore[arg-type]
 
 
 @cli.command("run-all")
