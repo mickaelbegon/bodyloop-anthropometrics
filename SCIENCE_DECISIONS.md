@@ -117,6 +117,29 @@ Format: `## [YYYY-MM-DD] Title`
   primary source; measurement-to-parameter mapping PENDING.
 - **Validator**: Val-Hatze agent (Claude Opus), 2026-09-12.
 
+## [2026-09-12] Hatze 242-measurement reconstruction and A1.4 segment assignment (ASSUMPTION)
+
+- **Decision**: ASSUMPTION — `configs/bodyloop_to_hatze.yaml` was reconstructed from the
+  segment geometry figures in `docs/HATZE_EQUATIONS.md` §3 (the cheatsheet), not from
+  Hatze (1979) directly. The 242 entries match the per-segment budget exactly (trunk 24,
+  head-neck 8, shoulders 5+5, arms 4×20, hands 8+8, pelvis 12, thighs/shanks 4×20,
+  feet 6+6).
+- **A1.4 assignment assumption**: The cheatsheet §3 states the Elliptic Octoparaboloid
+  (A1.4) is "used for trunk and torso slices" without naming a specific segment. The
+  implementation assumes A1.4 is consumed by the **abdomino-pelvic outer cross-section**
+  (segment 11, 4 entries: h11_s01_ml/ap, h11_s02_ml/ap). Trunk slices (segment 1) use
+  A1.1 + A1.6 as stated in §3. This assignment must be verified against Hatze (1979).
+  **All 4 A1.4 entries are blocked (`blocked: true`) — `HatzeAdapter.compute_primitive_params()`
+  raises `RuntimeError` for any call involving A1.4.**
+- **Source-type breakdown (242 entries):** 168 direct, 56 calculated, 18 manual.
+  All 242 carry `manual_validation_required: true` and provisional `bodyloop_path`.
+- **Rationale**: Provides the full extraction infrastructure (schemas, YAML, adapter)
+  that can be filled in when the primary source is obtained, without guessing formulas.
+- **Reference**: `configs/bodyloop_to_hatze.yaml`, `bodyloop_anthropometrics/anthropometry/hatze_adapter.py`.
+  Hatze, H. (1979). CSIR Technical Report TWISK 79 — required to confirm all assignments.
+- **Validation status**: PENDING — segment geometry assignment requires Hatze (1979).
+- **Validator**: Agent H (Claude Opus), 2026-09-12.
+
 ## [2026-09-11] Hatze equation audit — primary source (TODO_SCIENTIFIC)
 
 - **Decision**: PENDING — hatze-biomech cheatsheet equations extracted and audited
