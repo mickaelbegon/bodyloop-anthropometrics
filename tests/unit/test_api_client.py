@@ -113,12 +113,15 @@ class TestTokenSafety:
         transport = httpx.MockTransport(_mock_send)
 
         with patch("httpx.Client", autospec=True) as mock_cls:
+            # Use a full MagicMock for the response: httpx.Response.is_success is a
+            # read-only property and cannot be overridden on a real Response instance.
+            mock_response = MagicMock()
+            mock_response.is_success = False
+            mock_response.status_code = 401
+            mock_response.json.return_value = {"detail": "Unauthorized"}
+
             instance = MagicMock()
-            instance.get.return_value = httpx.Response(
-                401, json={"detail": "Unauthorized"}
-            )
-            instance.get.return_value.is_success = False
-            instance.get.return_value.status_code = 401
+            instance.get.return_value = mock_response
             mock_cls.return_value = instance
 
             client = BodyLoopClient()

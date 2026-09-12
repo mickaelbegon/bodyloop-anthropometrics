@@ -62,3 +62,6 @@ Thumbs.db
 # Build artefacts
 *.so
 *.dylib
+
+.pytest_tmp/
+htmlcov/

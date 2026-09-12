@@ -68,7 +68,7 @@ warn_return_any = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov=bodyloop_anthropometrics --cov-report=term-missing --cov-report=html"
+addopts = "--cov=bodyloop_anthropometrics --cov-report=term-missing --cov-report=html --basetemp=.pytest_tmp"
 markers = [
     "unit: fast unit tests (no network, no large files)",
     "integration: integration tests (may need BodyLoop API)",
