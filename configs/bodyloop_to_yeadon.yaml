@@ -1,51 +1,1166 @@
 # Mapping BodyLoop measurements to Yeadon (1990) measurement keys
-# Version: 0.1.0
-# Reference: https://yeadon.readthedocs.io/en/latest/measurements.html
+# Version: 1.0.0
+#
+# Primary reference:
+#   Yeadon, M.R. (1990). The simulation of aerial movement - II. A mathematical
+#   inertia model of the human body. Journal of Biomechanics 23(1):67-74.
+#   https://yeadon.readthedocs.io/en/latest/measurements.html
+#
+# Entry count: 95 (Ls 21 + La 18 + Lb 18 + Lj 19 + Lk 19), verified against
+# `yeadon.human.Human.measnames` in yeadon 1.5.0.  Side convention:
+#   Ls = torso/head-neck,  La = LEFT arm,  Lb = RIGHT arm,
+#   Lj = LEFT leg,         Lk = RIGHT leg.
 #
 # Format per key:
-#   yeadon_key:
-#     bodyloop_path: null  # JSON path in normalised BodyLoop data, or null if not directly available
-#     source_type: null    # "direct" | "calculated" | "interpolated" | "external" | "manual"
-#     anatomical_definition: ""  # verbatim definition from Yeadon (1990)
-#     calculation: null    # formula or method description if not a direct measurement
-#     units: "m"
-#     confidence: 0.0      # 0.0 = unknown, 1.0 = direct measurement
-#     manual_validation_required: true
+#   <yeadon_key>:
+#     bodyloop_path: str|null      dotted path in the normalised BodyLoop data
+#                                  (markers.*, distances.*, heights.*,
+#                                  crosssections.*, crosssection_series.*).
+#                                  null means the value cannot be read directly
+#                                  and MUST be derived before use.
+#     source_type: str             direct | calculated | interpolated |
+#                                  external | manual
+#     anatomical_definition: str   Yeadon's definition of the level/quantity
+#     calculation: str|null        derivation when source_type != "direct"
+#     units: "m"                   every Yeadon measurement is a length
+#     frame: str                   reference frame of the quantity
+#     confidence: float            0.0 unknown ... 1.0 direct measurement
+#     manual_validation_required: bool
+#     notes: str|null
 #
-# TODO: populate all 95 Yeadon measurement keys.
-#       See https://yeadon.readthedocs.io/en/latest/measurements.html for the
-#       complete list.  Each key must be validated against the original
-#       publication: Yeadon, M.R. (1990). J Biomech 23(1):67-74.
+# ---------------------------------------------------------------------------
+# NOTE 1 - convex vs perimeter
+# ---------------------------------------------------------------------------
+# Yeadon's protocol takes perimeters with a tape measure pulled taut.  A taut
+# tape follows the CONVEX HULL of a cross-section, it cannot enter concavities.
+# BodyLoop reports both a true contour `perimeter` and a `convex` value for each
+# cross-section.  Every Yeadon perimeter key below therefore maps to the
+# `convex` value.  Using `perimeter` overestimates girth wherever the contour is
+# concave (waist, ankle, wrist, between the toes) and silently inflates the
+# stadium-solid volumes.
+# TODO_VALIDATE: quantify the convex-vs-perimeter difference on real scans.
 #
-# TODO_SCIENTIFIC: anatomical definitions must be confirmed against Yeadon (1990)
-#                  before any key is set to manual_validation_required: false.
-#                  See SCIENCE_DECISIONS.md.
+# ---------------------------------------------------------------------------
+# NOTE 2 - BodyLoop path vocabulary is PROVISIONAL
+# ---------------------------------------------------------------------------
+# The complete BodyLoop OpenAPI specification is not publicly documented
+# (see docs/RESEARCH.md, TODO_SCIENTIFIC #1).  The `bodyloop_path` values below
+# follow the normalised-export naming convention of
+# `bodyloop_anthropometrics/api/export.py` but the exact labels emitted by the
+# scanner have NOT been confirmed.  A path that does not resolve is reported in
+# `MeasurementSet.missing` - it is never imputed.
+#
+# ---------------------------------------------------------------------------
+# NOTE 3 - levels yeadon computes for you
+# ---------------------------------------------------------------------------
+# Four quantities are absent from the 95 keys because yeadon derives them:
+#   La1 / Lb1  mid upper-arm level  = 0.5 x La2L
+#   Lj2 / Lk2  mid-thigh level      = 0.5 x (Lj1L + Lj3L)
+#   Lj7 / Lk7  foot-arch level      = 0.5 x (Lj6L + Lj8L)
+#   Lj0p / Lk0p  crotch perimeter   derived from Ls0p and Ls0w
+# The PERIMETERS at those computed levels (La1p, Lj2p, Lj7p, ...) are still
+# required inputs and must be taken at the computed location, not at the
+# nearest convenient girth.
+#
+# ---------------------------------------------------------------------------
+# NOTE 4 - difficult anatomical landmarks
+# ---------------------------------------------------------------------------
+# The following Yeadon landmarks have no unambiguous optical-scan definition
+# and every key that depends on them carries manual_validation_required: true:
+#   hip joint centre, shoulder joint centre, acromion, crotch, heel,
+#   foot arch, nipple, base of thumb, lowest anterior rib.
+# See SCIENCE_DECISIONS.md, entry "Yeadon difficult anatomical landmarks".
+#
+# TODO_SCIENTIFIC: no key may be set to manual_validation_required: false until
+#                  its anatomical definition has been confirmed against
+#                  Yeadon (1990) Table 1 and Figure 1.
 
-# --- Whole-body length ---
 
-Ls:  # Standing height (top of head to floor)
-  bodyloop_path: null  # TODO: e.g. "heights.standing_height"
-  source_type: null
-  anatomical_definition: "Standing height — top of vertex to floor."
+# ===========================================================================
+# TORSO + HEAD-NECK (Ls) - 21 measurements
+# ===========================================================================
+# Levels: Ls0 hip joint centre, Ls1 umbilicus, Ls2 lowest front rib,
+#         Ls3 nipple, Ls4 shoulder joint centre, Ls5 acromion,
+#         Ls6 beneath the nose, Ls7 above the ear, Ls8 top of the head.
+# Lengths Ls1L-Ls5L are measured from Ls0; Ls6L-Ls8L are measured from Ls5.
+# There is no Ls4p and no Ls8p in Yeadon's set.
+
+Ls1L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the hip joint centre level (Ls0) to the umbilicus level (Ls1), measured along the longitudinal axis of the torso."
+  calculation: "heights.umbilicus - hip_joint_centre_height, where hip_joint_centre = regression on markers.ASIS_left, markers.ASIS_right, markers.greater_trochanter_left, markers.greater_trochanter_right (Harrington et al. 2007)"
+  units: "m"
+  frame: "bodyloop_global"
+  confidence: 0.55
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+Ls2L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the hip joint centre level (Ls0) to the level of the lowest front (anterior) rib (Ls2), along the longitudinal axis of the torso."
+  calculation: "heights.lowest_front_rib - hip_joint_centre_height; the lowest anterior rib is not a BodyLoop landmark and must be digitised on the rib-cage contour of the scan."
+  units: "m"
+  frame: "bodyloop_global"
+  confidence: 0.3
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+Ls3L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the hip joint centre level (Ls0) to the nipple level (Ls3), along the longitudinal axis of the torso."
+  calculation: "heights.nipple - hip_joint_centre_height, where hip_joint_centre = regression on markers.ASIS_left, markers.ASIS_right, markers.greater_trochanter_left, markers.greater_trochanter_right (Harrington et al. 2007)"
+  units: "m"
+  frame: "bodyloop_global"
+  confidence: 0.45
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+Ls4L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the hip joint centre level (Ls0) to the shoulder joint centre level (Ls4), along the longitudinal axis of the torso."
+  calculation: "shoulder_joint_centre_height - hip_joint_centre_height, where hip_joint_centre = regression on markers.ASIS_left, markers.ASIS_right, markers.greater_trochanter_left, markers.greater_trochanter_right (Harrington et al. 2007) and shoulder_joint_centre_right = markers.acromion_right offset inferiorly and medially (Rab et al. 2002) (averaged with the left side)"
+  units: "m"
+  frame: "bodyloop_global"
+  confidence: 0.5
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+Ls5L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the hip joint centre level (Ls0) to the acromion level (Ls5), along the longitudinal axis of the torso."
+  calculation: "markers.acromion_right[1] (averaged with acromion_left) - hip_joint_centre_height, where hip_joint_centre = regression on markers.ASIS_left, markers.ASIS_right, markers.greater_trochanter_left, markers.greater_trochanter_right (Harrington et al. 2007)"
+  units: "m"
+  frame: "bodyloop_global"
+  confidence: 0.5
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+Ls6L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the acromion level (Ls5) to the level beneath the nose (Ls6), along the longitudinal axis of the head-neck."
+  calculation: "heights.below_nose - mean(markers.acromion_left[1], markers.acromion_right[1])"
+  units: "m"
+  frame: "bodyloop_global"
+  confidence: 0.5
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+Ls7L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the acromion level (Ls5) to the level immediately above the ear (Ls7), along the longitudinal axis of the head-neck."
+  calculation: "heights.above_ear - mean(markers.acromion_left[1], markers.acromion_right[1])"
+  units: "m"
+  frame: "bodyloop_global"
+  confidence: 0.5
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+Ls8L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the acromion level (Ls5) to the top of the head (Ls8), along the longitudinal axis of the head-neck."
+  calculation: "heights.top_of_head - mean(markers.acromion_left[1], markers.acromion_right[1])"
+  units: "m"
+  frame: "bodyloop_global"
+  confidence: 0.55
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+Ls0p:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Perimeter of the torso at the hip joint centre level (Ls0)."
+  calculation: "interpolate the convex perimeter of crosssection_series.trunk at the hip joint centre height, where hip_joint_centre = regression on markers.ASIS_left, markers.ASIS_right, markers.greater_trochanter_left, markers.greater_trochanter_right (Harrington et al. 2007)"
+  units: "m"
+  frame: "bodyloop_global"
+  confidence: 0.45
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+Ls1p:
+  bodyloop_path: "crosssections.umbilicus.convex_m"
+  source_type: "direct"
+  anatomical_definition: "Perimeter of the torso at the umbilicus (Ls1)."
   calculation: null
   units: "m"
-  confidence: 0.0
+  frame: "bodyloop_global"
+  confidence: 0.8
+  manual_validation_required: false
+  notes: "Do NOT substitute the BodyLoop `waist` girth: that label is the minimal waist circumference, which is above the umbilicus in most subjects. Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+Ls2p:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Perimeter of the torso at the level of the lowest front rib (Ls2)."
+  calculation: "interpolate the convex perimeter of crosssection_series.trunk at heights.lowest_front_rib"
+  units: "m"
+  frame: "bodyloop_global"
+  confidence: 0.3
   manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
 
-# --- Trunk (s) segment measurements ---
-# TODO: add all trunk keys (Ls0 through Ls8) with bodyloop_path mappings
+Ls3p:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: "crosssections.nipple.convex_m"
+  source_type: "interpolated"
+  anatomical_definition: "Perimeter of the torso at the nipple level (Ls3)."
+  calculation: "fallback: interpolate crosssection_series.trunk at heights.nipple"
+  units: "m"
+  frame: "bodyloop_global"
+  confidence: 0.5
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md The BodyLoop `chest_max` girth is NOT a valid substitute: it is the maximum chest circumference, which need not fall at nipple level. Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
 
-# --- Head and neck (a) segment measurements ---
-# TODO: add La0 through La6
+Ls5p:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: "crosssections.neck_base.convex_m"
+  source_type: "interpolated"
+  anatomical_definition: "Perimeter of the neck at the acromion level (Ls5)."
+  calculation: "fallback: interpolate crosssection_series.trunk at the acromion height"
+  units: "m"
+  frame: "bodyloop_global"
+  confidence: 0.5
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md This is a neck perimeter, not a shoulder girth: the Ls5 stadium is the base of the head-neck segment. Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
 
-# --- Right arm (b) segment measurements ---
-# TODO: add Lb0 through Lb6
+Ls6p:
+  bodyloop_path: "crosssections.below_nose.convex_m"
+  source_type: "interpolated"
+  anatomical_definition: "Perimeter of the head at the level beneath the nose (Ls6)."
+  calculation: "fallback: interpolate crosssection_series.head at heights.below_nose"
+  units: "m"
+  frame: "bodyloop_global"
+  confidence: 0.6
+  manual_validation_required: false
+  notes: "Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
 
-# --- Left arm (c) segment measurements ---
-# TODO: add Lc0 through Lc6
+Ls7p:
+  bodyloop_path: "crosssections.head_max.convex_m"
+  source_type: "direct"
+  anatomical_definition: "Perimeter of the head at the level immediately above the ear (Ls7), approximately the maximum head circumference."
+  calculation: null
+  units: "m"
+  frame: "bodyloop_global"
+  confidence: 0.75
+  manual_validation_required: false
+  notes: "TODO_VALIDATE: BodyLoop `head_max` is the maximum head girth; Yeadon specifies the level just above the ear. The two coincide for most subjects but this must be checked on real scans. Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
 
-# --- Right leg (j) segment measurements ---
-# TODO: add Lj0 through Lj9
+Ls0w:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Medio-lateral width of the torso at the hip joint centre level (Ls0)."
+  calculation: "width_ml of crosssection_series.trunk interpolated at the hip joint centre height, where hip_joint_centre = regression on markers.ASIS_left, markers.ASIS_right, markers.greater_trochanter_left, markers.greater_trochanter_right (Harrington et al. 2007)"
+  units: "m"
+  frame: "bodyloop_global"
+  confidence: 0.45
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md Do NOT substitute distances.hip_width: that is the maximum hip breadth, not the breadth at the hip joint centre level."
 
-# --- Left leg (k) segment measurements ---
-# TODO: add Lk0 through Lk9
+Ls1w:
+  bodyloop_path: "crosssections.umbilicus.width_ml_m"
+  source_type: "direct"
+  anatomical_definition: "Medio-lateral width of the torso at the umbilicus (Ls1)."
+  calculation: null
+  units: "m"
+  frame: "bodyloop_global"
+  confidence: 0.8
+  manual_validation_required: false
+  notes: null
+
+Ls2w:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Medio-lateral width of the torso at the lowest front rib (Ls2)."
+  calculation: "width_ml of crosssection_series.trunk interpolated at heights.lowest_front_rib"
+  units: "m"
+  frame: "bodyloop_global"
+  confidence: 0.3
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+Ls3w:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: "crosssections.nipple.width_ml_m"
+  source_type: "interpolated"
+  anatomical_definition: "Medio-lateral width of the torso at the nipple level (Ls3)."
+  calculation: "fallback: width_ml of crosssection_series.trunk interpolated at heights.nipple"
+  units: "m"
+  frame: "bodyloop_global"
+  confidence: 0.5
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+Ls4w:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Medio-lateral width of the torso at the shoulder joint centre level (Ls4)."
+  calculation: "width_ml of crosssection_series.trunk interpolated at the shoulder joint centre height, where shoulder_joint_centre_right = markers.acromion_right offset inferiorly and medially (Rab et al. 2002)"
+  units: "m"
+  frame: "bodyloop_global"
+  confidence: 0.45
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md Do NOT substitute distances.shoulder_width (biacromial breadth): the Ls4 stadium is the torso at the shoulder joint centre, which excludes the deltoids."
+
+Ls4d:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Antero-posterior depth of the torso at the shoulder joint centre level (Ls4). Yeadon specifies a depth at this level because the shoulder joints make a medio-lateral measurement ambiguous."
+  calculation: "depth_ap of crosssection_series.trunk interpolated at the shoulder joint centre height, where shoulder_joint_centre_right = markers.acromion_right offset inferiorly and medially (Rab et al. 2002)"
+  units: "m"
+  frame: "bodyloop_global"
+  confidence: 0.45
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md TODO_VALIDATE: yeadon 1.5.0 requires BOTH Ls4w and Ls4d; confirm against Yeadon (1990) Table 1 how the level-4 stadium is parameterised from the two."
+
+
+# ===========================================================================
+# LEFT ARM (La) - 18 measurements
+# ===========================================================================
+# Levels: 0 shoulder joint centre, 1 mid upper arm (computed: 0.5 x La2L),
+#         2 elbow joint centre, 3 maximum forearm perimeter,
+#         4 wrist joint centre, 5 base of thumb, 6 knuckles, 7 nails.
+# Lengths La2L-La4L are measured from La0; La5L-La7L are measured from La4.
+# Levels 0-3 are modelled as circles, hence no widths below La4w.
+
+La2L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the left shoulder joint centre (level 0) to the elbow joint centre (level 2), along the longitudinal axis of the arm."
+  calculation: "norm(shoulder_joint_centre_left - elbow_joint_centre_left), where shoulder_joint_centre_left = markers.acromion_left offset inferiorly and medially (Rab et al. 2002) and elbow_joint_centre_left is midway between markers.lateral_epicondyle_left and markers.medial_epicondyle_left"
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.55
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+La3L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the left shoulder joint centre (level 0) to the level of maximum forearm perimeter (level 3), along the arm axis."
+  calculation: "La2L + axial position of the maximum-convex section of crosssection_series.forearm_left"
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.55
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+La4L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the left shoulder joint centre (level 0) to the wrist joint centre (level 4), along the arm axis."
+  calculation: "La2L + norm(elbow_joint_centre_left - wrist_joint_centre_left), where wrist_joint_centre_left is midway between markers.ulnar_styloid_left and markers.radial_styloid_left"
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.55
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+La5L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the left wrist joint centre (level 4) to the base of the thumb (level 5)."
+  calculation: "axial distance from wrist_joint_centre_left to the first metacarpophalangeal joint on the hand axis"
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.3
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+La6L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the left wrist joint centre (level 4) to the knuckles (level 6)."
+  calculation: "distances.hand_length_left x metacarpal fraction, or axial distance from wrist_joint_centre_left to the metacarpal heads on the scan"
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.45
+  manual_validation_required: true
+  notes: "TODO_VALIDATE: the metacarpal fraction of hand length is a population estimate, not a measurement on this subject."
+
+La7L:
+  bodyloop_path: "distances.hand_length_left"
+  source_type: "direct"
+  anatomical_definition: "Distance from the left wrist joint centre (level 4) to the tips of the fingernails (level 7)."
+  calculation: null
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.65
+  manual_validation_required: false
+  notes: "TODO_VALIDATE: BodyLoop hand length is conventionally measured from the distal wrist crease, which is distal to the wrist joint centre; the offset must be quantified."
+
+La0p:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Perimeter of the left upper arm at the shoulder joint centre level (level 0)."
+  calculation: "convex perimeter of crosssection_series.upper_arm_left interpolated at the shoulder joint centre"
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.45
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+La1p:
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Perimeter of the left upper arm at mid upper-arm (level 1)."
+  calculation: "convex perimeter of crosssection_series.upper_arm_left interpolated at 0.5 x La2L"
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.6
+  manual_validation_required: false
+  notes: "Level 1 is not an independent measurement: yeadon places it at 0.5 x La2L, so the perimeter must be taken at that computed location. Do NOT substitute the maximum (biceps) girth. Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+La2p:
+  bodyloop_path: "crosssections.elbow_left.convex_m"
+  source_type: "interpolated"
+  anatomical_definition: "Perimeter of the left arm at the elbow joint centre (level 2)."
+  calculation: "fallback: interpolate crosssection_series.forearm_left at the elbow joint centre"
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.65
+  manual_validation_required: false
+  notes: "Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+La3p:
+  bodyloop_path: "crosssections.forearm_max_left.convex_m"
+  source_type: "direct"
+  anatomical_definition: "Maximum perimeter of the left forearm (level 3)."
+  calculation: null
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.8
+  manual_validation_required: false
+  notes: "Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+La4p:
+  bodyloop_path: "crosssections.wrist_left.convex_m"
+  source_type: "direct"
+  anatomical_definition: "Perimeter of the left wrist at the wrist joint centre (level 4)."
+  calculation: null
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.75
+  manual_validation_required: false
+  notes: "Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+La5p:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Perimeter of the left hand at the base of the thumb (level 5)."
+  calculation: "convex perimeter of crosssection_series.hand_left interpolated at the base of the thumb"
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.3
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+La6p:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: "crosssections.knuckles_left.convex_m"
+  source_type: "interpolated"
+  anatomical_definition: "Perimeter of the left hand at the knuckles (level 6)."
+  calculation: "fallback: convex perimeter of crosssection_series.hand_left at the metacarpal heads"
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.4
+  manual_validation_required: true
+  notes: "Hand and finger geometry is poorly resolved by full-body optical scanning; this value must be confirmed or measured with a tape. Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+La7p:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Perimeter of the left fingers at the nails (level 7)."
+  calculation: "convex perimeter of crosssection_series.hand_left at the distal phalanges"
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.3
+  manual_validation_required: true
+  notes: "Finger geometry is below the resolution of a full-body optical scan; measure manually. Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+La4w:
+  bodyloop_path: "crosssections.wrist_left.width_ml_m"
+  source_type: "direct"
+  anatomical_definition: "Medio-lateral width of the left wrist at the wrist joint centre (level 4), in the anatomical frame of the forearm."
+  calculation: null
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.7
+  manual_validation_required: false
+  notes: null
+
+La5w:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Medio-lateral width of the left hand at the base of the thumb (level 5), in the anatomical frame of the hand."
+  calculation: "width_ml of crosssection_series.hand_left at the base of the thumb"
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.3
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+La6w:
+  bodyloop_path: "distances.hand_width_left"
+  source_type: "direct"
+  anatomical_definition: "Medio-lateral width of the left hand at the knuckles (level 6), in the anatomical frame of the hand."
+  calculation: null
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.7
+  manual_validation_required: false
+  notes: "BodyLoop hand breadth is measured across the metacarpal heads, which is Yeadon's level 6."
+
+La7w:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Medio-lateral width of the left fingers at the nails (level 7)."
+  calculation: "width_ml of crosssection_series.hand_left at the distal phalanges"
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.3
+  manual_validation_required: true
+  notes: "Finger geometry is below the resolution of a full-body optical scan; measure manually."
+
+
+# ===========================================================================
+# RIGHT ARM (Lb) - 18 measurements
+# ===========================================================================
+# Same level definitions as the left arm (La0 -> Lb0, etc.).
+
+Lb2L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the right shoulder joint centre (level 0) to the elbow joint centre (level 2), along the longitudinal axis of the arm."
+  calculation: "norm(shoulder_joint_centre_right - elbow_joint_centre_right), where shoulder_joint_centre_right = markers.acromion_right offset inferiorly and medially (Rab et al. 2002) and elbow_joint_centre_right is midway between markers.lateral_epicondyle_right and markers.medial_epicondyle_right"
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.55
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+Lb3L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the right shoulder joint centre (level 0) to the level of maximum forearm perimeter (level 3), along the arm axis."
+  calculation: "Lb2L + axial position of the maximum-convex section of crosssection_series.forearm_right"
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.55
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+Lb4L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the right shoulder joint centre (level 0) to the wrist joint centre (level 4), along the arm axis."
+  calculation: "Lb2L + norm(elbow_joint_centre_right - wrist_joint_centre_right), where wrist_joint_centre_right is midway between markers.ulnar_styloid_right and markers.radial_styloid_right"
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.55
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+Lb5L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the right wrist joint centre (level 4) to the base of the thumb (level 5)."
+  calculation: "axial distance from wrist_joint_centre_right to the first metacarpophalangeal joint on the hand axis"
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.3
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+Lb6L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the right wrist joint centre (level 4) to the knuckles (level 6)."
+  calculation: "distances.hand_length_right x metacarpal fraction, or axial distance from wrist_joint_centre_right to the metacarpal heads on the scan"
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.45
+  manual_validation_required: true
+  notes: "TODO_VALIDATE: the metacarpal fraction of hand length is a population estimate, not a measurement on this subject."
+
+Lb7L:
+  bodyloop_path: "distances.hand_length_right"
+  source_type: "direct"
+  anatomical_definition: "Distance from the right wrist joint centre (level 4) to the tips of the fingernails (level 7)."
+  calculation: null
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.65
+  manual_validation_required: false
+  notes: "TODO_VALIDATE: BodyLoop hand length is conventionally measured from the distal wrist crease, which is distal to the wrist joint centre; the offset must be quantified."
+
+Lb0p:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Perimeter of the right upper arm at the shoulder joint centre level (level 0)."
+  calculation: "convex perimeter of crosssection_series.upper_arm_right interpolated at the shoulder joint centre"
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.45
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+Lb1p:
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Perimeter of the right upper arm at mid upper-arm (level 1)."
+  calculation: "convex perimeter of crosssection_series.upper_arm_right interpolated at 0.5 x Lb2L"
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.6
+  manual_validation_required: false
+  notes: "Level 1 is not an independent measurement: yeadon places it at 0.5 x Lb2L, so the perimeter must be taken at that computed location. Do NOT substitute the maximum (biceps) girth. Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+Lb2p:
+  bodyloop_path: "crosssections.elbow_right.convex_m"
+  source_type: "interpolated"
+  anatomical_definition: "Perimeter of the right arm at the elbow joint centre (level 2)."
+  calculation: "fallback: interpolate crosssection_series.forearm_right at the elbow joint centre"
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.65
+  manual_validation_required: false
+  notes: "Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+Lb3p:
+  bodyloop_path: "crosssections.forearm_max_right.convex_m"
+  source_type: "direct"
+  anatomical_definition: "Maximum perimeter of the right forearm (level 3)."
+  calculation: null
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.8
+  manual_validation_required: false
+  notes: "Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+Lb4p:
+  bodyloop_path: "crosssections.wrist_right.convex_m"
+  source_type: "direct"
+  anatomical_definition: "Perimeter of the right wrist at the wrist joint centre (level 4)."
+  calculation: null
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.75
+  manual_validation_required: false
+  notes: "Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+Lb5p:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Perimeter of the right hand at the base of the thumb (level 5)."
+  calculation: "convex perimeter of crosssection_series.hand_right interpolated at the base of the thumb"
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.3
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+Lb6p:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: "crosssections.knuckles_right.convex_m"
+  source_type: "interpolated"
+  anatomical_definition: "Perimeter of the right hand at the knuckles (level 6)."
+  calculation: "fallback: convex perimeter of crosssection_series.hand_right at the metacarpal heads"
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.4
+  manual_validation_required: true
+  notes: "Hand and finger geometry is poorly resolved by full-body optical scanning; this value must be confirmed or measured with a tape. Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+Lb7p:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Perimeter of the right fingers at the nails (level 7)."
+  calculation: "convex perimeter of crosssection_series.hand_right at the distal phalanges"
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.3
+  manual_validation_required: true
+  notes: "Finger geometry is below the resolution of a full-body optical scan; measure manually. Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+Lb4w:
+  bodyloop_path: "crosssections.wrist_right.width_ml_m"
+  source_type: "direct"
+  anatomical_definition: "Medio-lateral width of the right wrist at the wrist joint centre (level 4), in the anatomical frame of the forearm."
+  calculation: null
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.7
+  manual_validation_required: false
+  notes: null
+
+Lb5w:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Medio-lateral width of the right hand at the base of the thumb (level 5), in the anatomical frame of the hand."
+  calculation: "width_ml of crosssection_series.hand_right at the base of the thumb"
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.3
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+Lb6w:
+  bodyloop_path: "distances.hand_width_right"
+  source_type: "direct"
+  anatomical_definition: "Medio-lateral width of the right hand at the knuckles (level 6), in the anatomical frame of the hand."
+  calculation: null
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.7
+  manual_validation_required: false
+  notes: "BodyLoop hand breadth is measured across the metacarpal heads, which is Yeadon's level 6."
+
+Lb7w:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Medio-lateral width of the right fingers at the nails (level 7)."
+  calculation: "width_ml of crosssection_series.hand_right at the distal phalanges"
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.3
+  manual_validation_required: true
+  notes: "Finger geometry is below the resolution of a full-body optical scan; measure manually."
+
+
+# ===========================================================================
+# LEFT LEG (Lj) - 19 measurements
+# ===========================================================================
+# Levels: 0 hip joint centre, 1 crotch, 2 mid-thigh (computed),
+#         3 knee joint centre, 4 maximum calf perimeter,
+#         5 ankle joint centre, 6 heel, 7 arch (computed),
+#         8 ball of the foot, 9 toe nails.
+# Lengths Lj1L-Lj5L are measured from Lj0; Lj6L-Lj9L are measured from Lj5.
+# There is no Lj0p: yeadon derives the crotch perimeter from Ls0p and Ls0w.
+
+Lj1L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the left hip joint centre (level 0) to the crotch (level 1), along the longitudinal axis of the leg."
+  calculation: "hip_joint_centre_height - heights.crotch, where hip_joint_centre = regression on markers.ASIS_left, markers.ASIS_right, markers.greater_trochanter_left, markers.greater_trochanter_right (Harrington et al. 2007)"
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.35
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+Lj3L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the left hip joint centre (level 0) to the knee joint centre (level 3), along the leg axis."
+  calculation: "norm(hip_joint_centre_left - knee_joint_centre_left), where hip_joint_centre = regression on markers.ASIS_left, markers.ASIS_right, markers.greater_trochanter_left, markers.greater_trochanter_right (Harrington et al. 2007) and knee_joint_centre_left is midway between markers.lateral_knee_left and markers.medial_knee_left"
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.55
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+Lj4L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the left hip joint centre (level 0) to the level of maximum calf perimeter (level 4), along the leg axis."
+  calculation: "Lj3L + axial position of the maximum-convex section of crosssection_series.lower_leg_left"
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.55
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+Lj5L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the left hip joint centre (level 0) to the ankle joint centre (level 5), along the leg axis."
+  calculation: "Lj3L + norm(knee_joint_centre_left - ankle_joint_centre_left), where ankle_joint_centre_left is midway between markers.lateral_malleolus_left and markers.medial_malleolus_left"
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.55
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+Lj6L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the left ankle joint centre (level 5) to the posterior aspect of the heel (level 6), measured in the plane of the foot."
+  calculation: "norm(ankle_joint_centre_left - markers.heel_left) projected on the long axis of the foot"
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.35
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+Lj8L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the left ankle joint centre (level 5) to the ball of the foot (level 8), along the long axis of the foot."
+  calculation: "distances.foot_length_left - Lj6L - toe_length_left, or the axial position of the metatarsal heads on crosssection_series.foot_left"
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.45
+  manual_validation_required: true
+  notes: "TODO_VALIDATE: the ball of the foot is the metatarsal-head line; deriving it by subtraction from foot length propagates the heel landmark error."
+
+Lj9L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the left ankle joint centre (level 5) to the tips of the toe nails (level 9), along the long axis of the foot."
+  calculation: "distances.foot_length_left - Lj6L"
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.55
+  manual_validation_required: true
+  notes: "Depends on the heel landmark; foot length is measured heel-to-toe, so the ankle-referenced value requires the heel offset."
+
+Lj1p:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: "crosssections.upper_thigh_left.convex_m"
+  source_type: "interpolated"
+  anatomical_definition: "Perimeter of the left thigh at the crotch (level 1)."
+  calculation: "fallback: convex perimeter of crosssection_series.thigh_left interpolated at heights.crotch"
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.45
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+Lj2p:
+  bodyloop_path: "crosssections.mid_thigh_left.convex_m"
+  source_type: "interpolated"
+  anatomical_definition: "Perimeter of the left thigh at mid-thigh (level 2)."
+  calculation: "fallback: convex perimeter of crosssection_series.thigh_left at 0.5 x (Lj1L + Lj3L)"
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.65
+  manual_validation_required: false
+  notes: "Level 2 is not an independent measurement: yeadon places it at the mean of Lj1L and Lj3L, so the perimeter must be taken at that computed location. Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+Lj3p:
+  bodyloop_path: "crosssections.knee_left.convex_m"
+  source_type: "direct"
+  anatomical_definition: "Perimeter of the left leg at the knee joint centre (level 3)."
+  calculation: null
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.75
+  manual_validation_required: false
+  notes: "Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+Lj4p:
+  bodyloop_path: "crosssections.calf_max_left.convex_m"
+  source_type: "direct"
+  anatomical_definition: "Maximum perimeter of the left calf (level 4)."
+  calculation: null
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.8
+  manual_validation_required: false
+  notes: "Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+Lj5p:
+  bodyloop_path: "crosssections.ankle_left.convex_m"
+  source_type: "direct"
+  anatomical_definition: "Perimeter of the left leg at the ankle joint centre (level 5)."
+  calculation: null
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.75
+  manual_validation_required: false
+  notes: "Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+Lj6p:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Perimeter of the left foot at the heel (level 6)."
+  calculation: "convex perimeter of crosssection_series.foot_left at the heel, in a plane normal to the long axis of the foot"
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.3
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+Lj7p:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Perimeter of the left foot at the arch (level 7)."
+  calculation: "convex perimeter of crosssection_series.foot_left at 0.5 x (Lj6L + Lj8L)"
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.3
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md Level 7 is not an independent measurement: yeadon places it at the mean of Lj6L and Lj8L, so the perimeter must be taken at that computed location. Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+Lj8p:
+  bodyloop_path: "crosssections.ball_of_foot_left.convex_m"
+  source_type: "interpolated"
+  anatomical_definition: "Perimeter of the left foot at the ball of the foot (level 8)."
+  calculation: "fallback: convex perimeter of crosssection_series.foot_left at the metatarsal heads"
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.55
+  manual_validation_required: false
+  notes: "Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+Lj9p:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Perimeter of the left toes at the nails (level 9)."
+  calculation: "convex perimeter of crosssection_series.foot_left at the distal phalanges"
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.3
+  manual_validation_required: true
+  notes: "Toe geometry is below the resolution of a full-body optical scan; measure manually. Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+Lj8w:
+  bodyloop_path: "distances.foot_width_left"
+  source_type: "direct"
+  anatomical_definition: "Medio-lateral width of the left foot at the ball of the foot (level 8), in the anatomical frame of the foot."
+  calculation: null
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.75
+  manual_validation_required: false
+  notes: "BodyLoop foot breadth is measured across the metatarsal heads, which is Yeadon's level 8."
+
+Lj9w:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Medio-lateral width of the left toes at the nails (level 9)."
+  calculation: "width_ml of crosssection_series.foot_left at the distal phalanges"
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.3
+  manual_validation_required: true
+  notes: "Toe geometry is below the resolution of a full-body optical scan; measure manually."
+
+Lj6d:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Antero-posterior depth of the left foot at the heel (level 6). The heel stadium is oriented at 90 degrees to the other foot stadia, so Yeadon specifies a depth here rather than a width."
+  calculation: "depth_ap of crosssection_series.foot_left at the heel"
+  units: "m"
+  frame: "anatomical_local_left"
+  confidence: 0.3
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md The 90-degree stadium rotation at the heel is a frequent source of error: confirm the axis convention before use."
+
+
+# ===========================================================================
+# RIGHT LEG (Lk) - 19 measurements
+# ===========================================================================
+# Same level definitions as the left leg (Lj0 -> Lk0, etc.).
+
+Lk1L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the right hip joint centre (level 0) to the crotch (level 1), along the longitudinal axis of the leg."
+  calculation: "hip_joint_centre_height - heights.crotch, where hip_joint_centre = regression on markers.ASIS_left, markers.ASIS_right, markers.greater_trochanter_left, markers.greater_trochanter_right (Harrington et al. 2007)"
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.35
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+Lk3L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the right hip joint centre (level 0) to the knee joint centre (level 3), along the leg axis."
+  calculation: "norm(hip_joint_centre_right - knee_joint_centre_right), where hip_joint_centre = regression on markers.ASIS_left, markers.ASIS_right, markers.greater_trochanter_left, markers.greater_trochanter_right (Harrington et al. 2007) and knee_joint_centre_right is midway between markers.lateral_knee_right and markers.medial_knee_right"
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.55
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+Lk4L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the right hip joint centre (level 0) to the level of maximum calf perimeter (level 4), along the leg axis."
+  calculation: "Lk3L + axial position of the maximum-convex section of crosssection_series.lower_leg_right"
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.55
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+Lk5L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the right hip joint centre (level 0) to the ankle joint centre (level 5), along the leg axis."
+  calculation: "Lk3L + norm(knee_joint_centre_right - ankle_joint_centre_right), where ankle_joint_centre_right is midway between markers.lateral_malleolus_right and markers.medial_malleolus_right"
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.55
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+Lk6L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the right ankle joint centre (level 5) to the posterior aspect of the heel (level 6), measured in the plane of the foot."
+  calculation: "norm(ankle_joint_centre_right - markers.heel_right) projected on the long axis of the foot"
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.35
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md"
+
+Lk8L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the right ankle joint centre (level 5) to the ball of the foot (level 8), along the long axis of the foot."
+  calculation: "distances.foot_length_right - Lk6L - toe_length_right, or the axial position of the metatarsal heads on crosssection_series.foot_right"
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.45
+  manual_validation_required: true
+  notes: "TODO_VALIDATE: the ball of the foot is the metatarsal-head line; deriving it by subtraction from foot length propagates the heel landmark error."
+
+Lk9L:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Distance from the right ankle joint centre (level 5) to the tips of the toe nails (level 9), along the long axis of the foot."
+  calculation: "distances.foot_length_right - Lk6L"
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.55
+  manual_validation_required: true
+  notes: "Depends on the heel landmark; foot length is measured heel-to-toe, so the ankle-referenced value requires the heel offset."
+
+Lk1p:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: "crosssections.upper_thigh_right.convex_m"
+  source_type: "interpolated"
+  anatomical_definition: "Perimeter of the right thigh at the crotch (level 1)."
+  calculation: "fallback: convex perimeter of crosssection_series.thigh_right interpolated at heights.crotch"
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.45
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+Lk2p:
+  bodyloop_path: "crosssections.mid_thigh_right.convex_m"
+  source_type: "interpolated"
+  anatomical_definition: "Perimeter of the right thigh at mid-thigh (level 2)."
+  calculation: "fallback: convex perimeter of crosssection_series.thigh_right at 0.5 x (Lk1L + Lk3L)"
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.65
+  manual_validation_required: false
+  notes: "Level 2 is not an independent measurement: yeadon places it at the mean of Lk1L and Lk3L, so the perimeter must be taken at that computed location. Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+Lk3p:
+  bodyloop_path: "crosssections.knee_right.convex_m"
+  source_type: "direct"
+  anatomical_definition: "Perimeter of the right leg at the knee joint centre (level 3)."
+  calculation: null
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.75
+  manual_validation_required: false
+  notes: "Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+Lk4p:
+  bodyloop_path: "crosssections.calf_max_right.convex_m"
+  source_type: "direct"
+  anatomical_definition: "Maximum perimeter of the right calf (level 4)."
+  calculation: null
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.8
+  manual_validation_required: false
+  notes: "Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+Lk5p:
+  bodyloop_path: "crosssections.ankle_right.convex_m"
+  source_type: "direct"
+  anatomical_definition: "Perimeter of the right leg at the ankle joint centre (level 5)."
+  calculation: null
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.75
+  manual_validation_required: false
+  notes: "Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+Lk6p:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Perimeter of the right foot at the heel (level 6)."
+  calculation: "convex perimeter of crosssection_series.foot_right at the heel, in a plane normal to the long axis of the foot"
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.3
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+Lk7p:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Perimeter of the right foot at the arch (level 7)."
+  calculation: "convex perimeter of crosssection_series.foot_right at 0.5 x (Lk6L + Lk8L)"
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.3
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md Level 7 is not an independent measurement: yeadon places it at the mean of Lk6L and Lk8L, so the perimeter must be taken at that computed location. Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+Lk8p:
+  bodyloop_path: "crosssections.ball_of_foot_right.convex_m"
+  source_type: "interpolated"
+  anatomical_definition: "Perimeter of the right foot at the ball of the foot (level 8)."
+  calculation: "fallback: convex perimeter of crosssection_series.foot_right at the metatarsal heads"
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.55
+  manual_validation_required: false
+  notes: "Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+Lk9p:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Perimeter of the right toes at the nails (level 9)."
+  calculation: "convex perimeter of crosssection_series.foot_right at the distal phalanges"
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.3
+  manual_validation_required: true
+  notes: "Toe geometry is below the resolution of a full-body optical scan; measure manually. Perimeter must be the BodyLoop `convex` value, not `perimeter` - see the convex-vs-perimeter note in the file header."
+
+Lk8w:
+  bodyloop_path: "distances.foot_width_right"
+  source_type: "direct"
+  anatomical_definition: "Medio-lateral width of the right foot at the ball of the foot (level 8), in the anatomical frame of the foot."
+  calculation: null
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.75
+  manual_validation_required: false
+  notes: "BodyLoop foot breadth is measured across the metatarsal heads, which is Yeadon's level 8."
+
+Lk9w:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Medio-lateral width of the right toes at the nails (level 9)."
+  calculation: "width_ml of crosssection_series.foot_right at the distal phalanges"
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.3
+  manual_validation_required: true
+  notes: "Toe geometry is below the resolution of a full-body optical scan; measure manually."
+
+Lk6d:  # TODO_SCIENTIFIC: requires human validation
+  bodyloop_path: null
+  source_type: "calculated"
+  anatomical_definition: "Antero-posterior depth of the right foot at the heel (level 6). The heel stadium is oriented at 90 degrees to the other foot stadia, so Yeadon specifies a depth here rather than a width."
+  calculation: "depth_ap of crosssection_series.foot_right at the heel"
+  units: "m"
+  frame: "anatomical_local_right"
+  confidence: 0.3
+  manual_validation_required: true
+  notes: "TODO_SCIENTIFIC: anatomical landmark definition requires validation - see SCIENCE_DECISIONS.md The 90-degree stadium rotation at the heel is a frequent source of error: confirm the axis convention before use."
+
+# Entry count check: 95 keys defined above (must be 95).

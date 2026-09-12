@@ -36,14 +36,127 @@ Format: `## [YYYY-MM-DD] Title`
 
 ## [2026-09-11] Yeadon measurement mapping completeness
 
-- **Decision**: PENDING — `configs/bodyloop_to_yeadon.yaml` contains only the `Ls`
-  placeholder.  All 95 Yeadon keys must be populated before `build-yeadon` can be
-  considered functional.
-- **Rationale**: Requires simultaneous access to Yeadon (1990) and BodyLoop SDK
-  documentation to confirm anatomical correspondence.
+- **Decision**: PARTIALLY RESOLVED — `configs/bodyloop_to_yeadon.yaml` now defines all
+  95 keys.  The key *set* is closed and verified; the *anatomical content* of each
+  entry is not yet validated.  Of the 95 entries: 35 have a resolvable
+  `bodyloop_path`, 60 are `calculated` with the derivation documented but not
+  implemented, and 65 carry `manual_validation_required: true`.
+- **Rationale**: The key set was verified programmatically against
+  `yeadon.human.Human.measnames` in yeadon 1.5.0 rather than transcribed by hand
+  (Ls 21 + La 18 + Lb 18 + Lj 19 + Lk 19 = 95).  `tests/unit/test_yeadon_adapter.py`
+  asserts the equality, so the file cannot silently drift from the package.
 - **Reference**: Yeadon, M.R. (1990). The simulation of aerial movement — II. A
   mathematical inertia model of the human body. J Biomech 23(1):67-74.
   https://yeadon.readthedocs.io/en/latest/measurements.html
+- **Validation status**: PENDING — key set VALIDATED, anatomical definitions PENDING.
+- **Validator**: (unassigned)
+
+## [2026-09-11] Yeadon difficult anatomical landmarks (TODO_SCIENTIFIC)
+
+- **Decision**: PENDING — every measurement resting on one of these landmarks is
+  marked `manual_validation_required: true` in `configs/bodyloop_to_yeadon.yaml` and
+  is reported by `MeasurementSet.pending_validation()`.
+- **Affected landmarks and measurements**:
+  - *Hip joint centre* (Ls0 / Lj0 / Lk0): `Ls1L`, `Ls2L`, `Ls3L`, `Ls4L`, `Ls5L`,
+    `Ls0p`, `Ls0w`, `Lj1L`, `Lj3L`, `Lj4L`, `Lj5L`, `Lk1L`, `Lk3L`, `Lk4L`, `Lk5L`
+  - *Shoulder joint centre* (Ls4 / La0 / Lb0): `Ls4L`, `Ls4w`, `Ls4d`, `La0p`,
+    `La2L`, `La3L`, `La4L`, `Lb0p`, `Lb2L`, `Lb3L`, `Lb4L`
+  - *Acromion* (Ls5): `Ls5L`, `Ls6L`, `Ls7L`, `Ls8L`, `Ls5p`
+  - *Lowest anterior rib* (Ls2): `Ls2L`, `Ls2p`, `Ls2w`
+  - *Nipple* (Ls3): `Ls3L`, `Ls3p`, `Ls3w`
+  - *Base of thumb* (La5 / Lb5): `La5L`, `La5p`, `La5w`, `Lb5L`, `Lb5p`, `Lb5w`
+  - *Crotch* (Lj1 / Lk1): `Lj1L`, `Lj1p`, `Lk1L`, `Lk1p`
+  - *Heel* (Lj6 / Lk6): `Lj6L`, `Lj6p`, `Lj6d`, `Lk6L`, `Lk6p`, `Lk6d`
+  - *Foot arch* (Lj7 / Lk7): `Lj7p`, `Lk7p`
+- **Rationale**: Hip joint centre, shoulder joint centre, acromion, crotch, heel,
+  foot arch, nipple, base of thumb, and lowest anterior rib require careful
+  anatomical definition to match Yeadon (1990) exactly.  BodyLoop markers are
+  surface landmarks detected optically and do not necessarily coincide with
+  Yeadon's definitions — joint centres in particular are internal and must be
+  regressed, not measured.  An error in a *level* propagates to every length
+  measured from it, so these landmarks dominate the error budget of the model.
+- **Not an exhaustive list of flagged keys**: 65 of the 95 entries carry
+  `manual_validation_required: true`.  The 49 listed above are flagged because of a
+  *landmark* problem.  The remaining 16 (`La6L`, `La6p`, `La7p`, `La7w`, `Lb6L`,
+  `Lb6p`, `Lb7p`, `Lb7w`, `Lj8L`, `Lj9L`, `Lj9p`, `Lj9w`, `Lk8L`, `Lk9L`, `Lk9p`,
+  `Lk9w`) are flagged for a different reason: fingers and toes are below the useful
+  resolution of a full-body optical scan, so those values must be taken with a tape
+  measure or callipers regardless of how well the landmarks are defined.
+- **Reference**: Yeadon, M.R. (1990), Table 1 and Figure 1.
+  Harrington, M.E. et al. (2007). Prediction of the hip joint centre in adults,
+  children, and patients with cerebral palsy based on magnetic resonance imaging.
+  J Biomech 40(3):595-602.
+- **Validation status**: PENDING
+- **Validator**: (unassigned)
+
+## [2026-09-11] Yeadon perimeters map to BodyLoop `convex`, not `perimeter`
+
+- **Decision**: Every Yeadon perimeter key (`*p`) maps to the BodyLoop **`convex`**
+  value of the cross-section, never to the true contour `perimeter`.
+- **Rationale**: Yeadon's protocol takes perimeters with a tape measure pulled taut.
+  A taut tape follows the convex hull of a cross-section — it cannot enter
+  concavities.  The true contour perimeter is therefore the wrong analogue: it
+  exceeds the tape value wherever the contour is concave (waist, ankle, wrist,
+  between the toes) and inflates the stadium-solid volumes, hence the segment
+  masses.  BodyLoop reports both quantities, so the choice must be explicit.
+- **Reference**: Yeadon, M.R. (1989). The simulation of aerial movement — I. The
+  determination of orientation angles from film data. J Biomech 23(1):59-66
+  (measurement protocol).  Yeadon, M.R. (1990). J Biomech 23(1):67-74.
+- **Validation status**: PENDING — the magnitude of the convex-vs-perimeter
+  difference has not yet been quantified on real BodyLoop scans.
+- **Validator**: (unassigned)
+
+## [2026-09-11] Stadium consistency constraint between perimeter and width
+
+- **Decision**: PENDING — perimeter/width pairs feeding the same Yeadon level must be
+  taken from the *same* cross-section, not from two separately-labelled BodyLoop
+  measurements.
+- **Rationale**: `yeadon` models most levels as a stadium (a rectangle capped by two
+  semicircles) parameterised by a perimeter `p` and a width `w`.  The solid is only
+  geometrically valid when `p/w >= pi`; for `2 < p/w < pi` yeadon emits
+  "stadium is defined incorrectly, r must be positive and t must be nonnegative"
+  and silently degrades the solid, and at `p/w = 2` construction fails outright.
+  This was observed while building a `yeadon.Human` from plausible but
+  independently-chosen values.  Because the mapping draws some perimeters and some
+  widths from different BodyLoop labels, a mismatched pair can violate the
+  constraint without either value being individually wrong.
+- **Implication**: the extraction layer should validate `p/w >= pi` per level and
+  report a violation rather than pass the pair to yeadon.
+- **Reference**: yeadon 1.5.0, `yeadon/solid.py::Stadium.__init__`.
+  Yeadon, M.R. (1990). J Biomech 23(1):67-74, stadium solid definition.
+- **Validation status**: PENDING — the per-level check is not yet implemented.
+- **Validator**: (unassigned)
+
+## [2026-09-11] Levels yeadon derives rather than measures
+
+- **Decision**: ACCEPTED — four quantities are absent from the 95 keys because yeadon
+  computes them, and the mapping documents this rather than inventing keys for them.
+- **Affected levels**: `La1`/`Lb1` mid upper-arm = `0.5 x La2L`; `Lj2`/`Lk2` mid-thigh
+  = `0.5 x (Lj1L + Lj3L)`; `Lj7`/`Lk7` foot arch = `0.5 x (Lj6L + Lj8L)`;
+  `Lj0p`/`Lk0p` crotch perimeter, derived from `Ls0p` and `Ls0w`.
+- **Rationale**: The *perimeters* at those computed levels (`La1p`, `Lj2p`, `Lj7p`,
+  and their right-side counterparts) are still required inputs and must be sampled at
+  the computed axial location.  Substituting the nearest convenient girth — the
+  maximum biceps girth for `La1p`, or the maximum thigh girth for `Lj2p` — is a
+  common and silent source of error, so each of those entries carries an explicit
+  warning in the mapping file.
+- **Reference**: Yeadon, M.R. (1990). J Biomech 23(1):67-74.
+  https://yeadon.readthedocs.io/en/latest/measurements.html
+- **Validation status**: VALIDATED against yeadon 1.5.0 source.
+- **Validator**: (unassigned)
+
+## [2026-09-11] BodyLoop path vocabulary is provisional
+
+- **Decision**: PENDING — the `bodyloop_path` values in
+  `configs/bodyloop_to_yeadon.yaml` follow the normalised-export naming convention of
+  `bodyloop_anthropometrics/api/export.py`, but the labels the scanner actually emits
+  have **not** been confirmed.
+- **Rationale**: The complete BodyLoop OpenAPI specification is not publicly
+  documented (docs/RESEARCH.md, TODO_SCIENTIFIC #1).  Rather than guess silently, the
+  adapter reports any path that does not resolve in
+  `MeasurementSet.missing`; nothing is imputed.  Once the real label vocabulary is
+  known, only the YAML needs updating — no Python change is required.
+- **Reference**: docs/RESEARCH.md § 1; `bodyloop_anthropometrics/api/export.py`.
 - **Validation status**: PENDING
 - **Validator**: (unassigned)
 
