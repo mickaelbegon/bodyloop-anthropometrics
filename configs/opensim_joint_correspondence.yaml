@@ -1,0 +1,326 @@
+# OpenSim 4.x joint correspondence -- 17-segment model
+# Reference: ISB recommendations (Wu et al. 2002, 2005)
+# Units: metres, radians
+# All joint offsets marked TODO_SCIENTIFIC until ROM/anatomy literature review
+#
+# bsp_segment   -- key in BodyBSP.segments (direct_mesh_bsp.py)
+# yeadon_segment -- segment label from export_inertial_params() dict keys
+# hatze_segment  -- Hatze (1980) segment index (1=trunk, 11=pelvis, etc.)
+#
+# References:
+#   Wu G. et al. (2002). ISB recommendation on definitions of joint coordinate
+#     systems for reporting of human joint motion -- Part I: ankle, hip, spine.
+#     J Biomech 35(4):543-548.
+#   Wu G. et al. (2005). ISB recommendation on definitions of joint coordinate
+#     systems -- Part II: shoulder, elbow, wrist, hand. J Biomech 38(5):981-992.
+
+bodies:
+
+  ground:
+    opensim_name: "ground"
+    parent: null
+    joint: null
+
+  pelvis:
+    opensim_name: "pelvis"
+    bsp_segment: null        # BSP has unified trunk; no pelvis-torso separation
+    yeadon_segment: "P"      # Yeadon pelvis segment (abdomino-pelvic)
+    hatze_segment: 11
+    parent: "ground"
+    joint:
+      name: "ground_pelvis"
+      type: "FreeJoint"
+      location_in_parent: [0.0, 0.0, 0.95]   # TODO_SCIENTIFIC: standing height of pelvis origin above floor
+      orientation_in_parent: [0.0, 0.0, 0.0]
+      location_in_child: [0.0, 0.0, 0.0]
+      orientation_in_child: [0.0, 0.0, 0.0]
+    coordinates:
+      - {name: "pelvis_tx", motion_type: "translational"}
+      - {name: "pelvis_ty", motion_type: "translational"}
+      - {name: "pelvis_tz", motion_type: "translational"}
+      - {name: "pelvis_tilt", motion_type: "rotational"}
+      - {name: "pelvis_list", motion_type: "rotational"}
+      - {name: "pelvis_rotation", motion_type: "rotational"}
+    notes: "TODO_SCIENTIFIC: pelvis position from BodyLoop global origin; ground frame is ISB (Y-up)"
+
+  torso:
+    opensim_name: "torso"
+    bsp_segment: "trunk"     # BSP trunk = pelvis + abdomen + thorax (unified)
+    yeadon_segment: "T"      # Yeadon thorax segment
+    hatze_segment: 1
+    parent: "pelvis"
+    joint:
+      name: "back"
+      type: "BallJoint"
+      location_in_parent: [0.0, 0.0, 0.1]    # TODO_SCIENTIFIC: L5/S1 joint centre height above pelvis COM
+      orientation_in_parent: [0.0, 0.0, 0.0]
+      location_in_child: [0.0, 0.0, -0.25]   # TODO_SCIENTIFIC: L5/S1 below thorax COM
+      orientation_in_child: [0.0, 0.0, 0.0]
+    coordinates:
+      - {name: "lumbar_extension"}
+      - {name: "lumbar_bending"}
+      - {name: "lumbar_rotation"}
+    notes: "TODO_SCIENTIFIC: lumbosacral (L5/S1) joint centre; BallJoint approximation omits coupling"
+
+  head:
+    opensim_name: "head"
+    bsp_segment: "head"
+    yeadon_segment: "C"      # Yeadon cranium / head-neck segment
+    hatze_segment: null
+    parent: "torso"
+    joint:
+      name: "neck"
+      type: "BallJoint"
+      location_in_parent: [0.0, 0.0, 0.26]   # TODO_SCIENTIFIC: C7/T1 height above thorax COM
+      orientation_in_parent: [0.0, 0.0, 0.0]
+      location_in_child: [0.0, 0.0, -0.12]   # TODO_SCIENTIFIC: C7/T1 below head COM
+      orientation_in_child: [0.0, 0.0, 0.0]
+    coordinates:
+      - {name: "neck_extension"}
+      - {name: "neck_bending"}
+      - {name: "neck_rotation"}
+    notes: "TODO_SCIENTIFIC: cervicothoracic (C7/T1) joint centre; Wu et al. (2002)"
+
+  upper_arm_r:
+    opensim_name: "upper_arm_r"
+    bsp_segment: "upper_arm_right"
+    yeadon_segment: "B1"     # Yeadon right upper arm
+    hatze_segment: null
+    parent: "torso"
+    joint:
+      name: "shoulder_r"
+      type: "BallJoint"
+      location_in_parent: [0.17, 0.0, 0.17]   # TODO_SCIENTIFIC: right glenohumeral centre relative to thorax COM (lateral offset)
+      orientation_in_parent: [0.0, 0.0, 0.0]
+      location_in_child: [0.0, 0.0, 0.17]     # TODO_SCIENTIFIC: glenohumeral centre above upper-arm COM
+      orientation_in_child: [0.0, 0.0, 0.0]
+    coordinates:
+      - {name: "arm_flex_r"}
+      - {name: "arm_add_r"}
+      - {name: "arm_rot_r"}
+    notes: "TODO_SCIENTIFIC: glenohumeral joint centre; Wu et al. (2005)"
+
+  upper_arm_l:
+    opensim_name: "upper_arm_l"
+    bsp_segment: "upper_arm_left"
+    yeadon_segment: "A1"     # Yeadon left upper arm
+    hatze_segment: null
+    parent: "torso"
+    joint:
+      name: "shoulder_l"
+      type: "BallJoint"
+      location_in_parent: [-0.17, 0.0, 0.17]  # TODO_SCIENTIFIC: left glenohumeral centre relative to thorax COM
+      orientation_in_parent: [0.0, 0.0, 0.0]
+      location_in_child: [0.0, 0.0, 0.17]     # TODO_SCIENTIFIC: glenohumeral centre above upper-arm COM
+      orientation_in_child: [0.0, 0.0, 0.0]
+    coordinates:
+      - {name: "arm_flex_l"}
+      - {name: "arm_add_l"}
+      - {name: "arm_rot_l"}
+    notes: "TODO_SCIENTIFIC: glenohumeral joint centre; Wu et al. (2005)"
+
+  radius_r:
+    opensim_name: "radius_r"
+    bsp_segment: "forearm_right"
+    yeadon_segment: "B2"     # Yeadon right forearm (+ hand in some versions)
+    hatze_segment: null
+    parent: "upper_arm_r"
+    joint:
+      name: "elbow_r"
+      type: "PinJoint"
+      location_in_parent: [0.0, 0.0, -0.28]   # TODO_SCIENTIFIC: elbow flexion axis below upper-arm COM
+      orientation_in_parent: [0.0, 1.5708, 0.0]  # TODO_SCIENTIFIC: pin axis aligned with ISB elbow flexion (Y-axis)
+      location_in_child: [0.0, 0.0, 0.12]     # TODO_SCIENTIFIC: elbow axis above forearm COM
+      orientation_in_child: [0.0, 0.0, 0.0]
+    coordinates:
+      - {name: "elbow_flex_r", motion_type: "rotational"}
+    notes: "TODO_SCIENTIFIC: humeroradial joint centre; Wu et al. (2005)"
+
+  radius_l:
+    opensim_name: "radius_l"
+    bsp_segment: "forearm_left"
+    yeadon_segment: "A2"     # Yeadon left forearm
+    hatze_segment: null
+    parent: "upper_arm_l"
+    joint:
+      name: "elbow_l"
+      type: "PinJoint"
+      location_in_parent: [0.0, 0.0, -0.28]   # TODO_SCIENTIFIC: elbow flexion axis below upper-arm COM
+      orientation_in_parent: [0.0, 1.5708, 0.0]  # TODO_SCIENTIFIC: pin axis aligned with ISB elbow flexion
+      location_in_child: [0.0, 0.0, 0.12]     # TODO_SCIENTIFIC: elbow axis above forearm COM
+      orientation_in_child: [0.0, 0.0, 0.0]
+    coordinates:
+      - {name: "elbow_flex_l", motion_type: "rotational"}
+    notes: "TODO_SCIENTIFIC: humeroradial joint centre; Wu et al. (2005)"
+
+  hand_r:
+    opensim_name: "hand_r"
+    bsp_segment: "hand_right"
+    yeadon_segment: null     # Yeadon B2 includes forearm+hand; no separate hand label
+    hatze_segment: null
+    parent: "radius_r"
+    joint:
+      name: "wrist_r"
+      type: "WeldJoint"
+      location_in_parent: [0.0, 0.0, -0.25]   # TODO_SCIENTIFIC: distal forearm / wrist centre below forearm COM
+      orientation_in_parent: [0.0, 0.0, 0.0]
+      location_in_child: [0.0, 0.0, 0.05]     # TODO_SCIENTIFIC: wrist centre above hand COM
+      orientation_in_child: [0.0, 0.0, 0.0]
+    coordinates: []
+    notes: "TODO_SCIENTIFIC: WeldJoint is a placeholder; wrist has 2 DOF (flexion + deviation) per ISB"
+
+  hand_l:
+    opensim_name: "hand_l"
+    bsp_segment: "hand_left"
+    yeadon_segment: null     # Yeadon A2 includes forearm+hand; no separate hand label
+    hatze_segment: null
+    parent: "radius_l"
+    joint:
+      name: "wrist_l"
+      type: "WeldJoint"
+      location_in_parent: [0.0, 0.0, -0.25]   # TODO_SCIENTIFIC: distal forearm / wrist centre below forearm COM
+      orientation_in_parent: [0.0, 0.0, 0.0]
+      location_in_child: [0.0, 0.0, 0.05]     # TODO_SCIENTIFIC: wrist centre above hand COM
+      orientation_in_child: [0.0, 0.0, 0.0]
+    coordinates: []
+    notes: "TODO_SCIENTIFIC: WeldJoint is a placeholder; wrist has 2 DOF (flexion + deviation) per ISB"
+
+  femur_r:
+    opensim_name: "femur_r"
+    bsp_segment: "thigh_right"
+    yeadon_segment: "K1"     # Yeadon right thigh
+    hatze_segment: null
+    parent: "pelvis"
+    joint:
+      name: "hip_r"
+      type: "BallJoint"
+      location_in_parent: [0.09, 0.0, -0.07]  # TODO_SCIENTIFIC: right hip joint centre relative to pelvis COM (Bell 1990)
+      orientation_in_parent: [0.0, 0.0, 0.0]
+      location_in_child: [0.0, 0.0, 0.20]     # TODO_SCIENTIFIC: hip centre above femur COM
+      orientation_in_child: [0.0, 0.0, 0.0]
+    coordinates:
+      - {name: "hip_flex_r"}
+      - {name: "hip_add_r"}
+      - {name: "hip_rot_r"}
+    notes: "TODO_SCIENTIFIC: hip joint centre; Wu et al. (2002); Bell (1990) regression pending"
+
+  femur_l:
+    opensim_name: "femur_l"
+    bsp_segment: "thigh_left"
+    yeadon_segment: "J1"     # Yeadon left thigh
+    hatze_segment: null
+    parent: "pelvis"
+    joint:
+      name: "hip_l"
+      type: "BallJoint"
+      location_in_parent: [-0.09, 0.0, -0.07] # TODO_SCIENTIFIC: left hip joint centre relative to pelvis COM
+      orientation_in_parent: [0.0, 0.0, 0.0]
+      location_in_child: [0.0, 0.0, 0.20]     # TODO_SCIENTIFIC: hip centre above femur COM
+      orientation_in_child: [0.0, 0.0, 0.0]
+    coordinates:
+      - {name: "hip_flex_l"}
+      - {name: "hip_add_l"}
+      - {name: "hip_rot_l"}
+    notes: "TODO_SCIENTIFIC: hip joint centre; Wu et al. (2002); Bell (1990) regression pending"
+
+  tibia_r:
+    opensim_name: "tibia_r"
+    bsp_segment: "shank_right"
+    yeadon_segment: "K2"     # Yeadon right lower leg
+    hatze_segment: null
+    parent: "femur_r"
+    joint:
+      name: "knee_r"
+      type: "PinJoint"
+      location_in_parent: [0.0, 0.0, -0.22]   # TODO_SCIENTIFIC: knee flexion axis below femur COM
+      orientation_in_parent: [1.5708, 0.0, 0.0]  # TODO_SCIENTIFIC: pin axis aligned with knee flexion (X-axis)
+      location_in_child: [0.0, 0.0, 0.20]     # TODO_SCIENTIFIC: knee axis above tibia COM
+      orientation_in_child: [0.0, 0.0, 0.0]
+    coordinates:
+      - {name: "knee_flex_r", motion_type: "rotational"}
+    notes: "TODO_SCIENTIFIC: tibiofemoral joint centre; Wu et al. (2002)"
+
+  tibia_l:
+    opensim_name: "tibia_l"
+    bsp_segment: "shank_left"
+    yeadon_segment: "J2"     # Yeadon left lower leg
+    hatze_segment: null
+    parent: "femur_l"
+    joint:
+      name: "knee_l"
+      type: "PinJoint"
+      location_in_parent: [0.0, 0.0, -0.22]   # TODO_SCIENTIFIC: knee flexion axis below femur COM
+      orientation_in_parent: [1.5708, 0.0, 0.0]  # TODO_SCIENTIFIC: pin axis aligned with knee flexion
+      location_in_child: [0.0, 0.0, 0.20]     # TODO_SCIENTIFIC: knee axis above tibia COM
+      orientation_in_child: [0.0, 0.0, 0.0]
+    coordinates:
+      - {name: "knee_flex_l", motion_type: "rotational"}
+    notes: "TODO_SCIENTIFIC: tibiofemoral joint centre; Wu et al. (2002)"
+
+  calcn_r:
+    opensim_name: "calcn_r"
+    bsp_segment: "foot_right"
+    yeadon_segment: "K3"     # Yeadon right foot
+    hatze_segment: null
+    parent: "tibia_r"
+    joint:
+      name: "ankle_r"
+      type: "CustomJoint"
+      location_in_parent: [0.0, 0.0, -0.40]   # TODO_SCIENTIFIC: ankle mortise centre below tibia COM
+      orientation_in_parent: [0.0, 0.0, 0.0]
+      location_in_child: [0.0, 0.0, 0.05]     # TODO_SCIENTIFIC: ankle centre above calcaneus COM
+      orientation_in_child: [0.0, 0.0, 0.0]
+    coordinates:
+      - {name: "ankle_angle_r", motion_type: "rotational"}    # plantarflexion/dorsiflexion
+      - {name: "subtalar_angle_r", motion_type: "rotational"} # inversion/eversion
+    notes: "TODO_SCIENTIFIC: talocrural + subtalar joint centres; Wu et al. (2002); 2-DOF CustomJoint"
+
+  calcn_l:
+    opensim_name: "calcn_l"
+    bsp_segment: "foot_left"
+    yeadon_segment: "J3"     # Yeadon left foot
+    hatze_segment: null
+    parent: "tibia_l"
+    joint:
+      name: "ankle_l"
+      type: "CustomJoint"
+      location_in_parent: [0.0, 0.0, -0.40]   # TODO_SCIENTIFIC: ankle mortise centre below tibia COM
+      orientation_in_parent: [0.0, 0.0, 0.0]
+      location_in_child: [0.0, 0.0, 0.05]     # TODO_SCIENTIFIC: ankle centre above calcaneus COM
+      orientation_in_child: [0.0, 0.0, 0.0]
+    coordinates:
+      - {name: "ankle_angle_l", motion_type: "rotational"}
+      - {name: "subtalar_angle_l", motion_type: "rotational"}
+    notes: "TODO_SCIENTIFIC: talocrural + subtalar joint centres; Wu et al. (2002); 2-DOF CustomJoint"
+
+  toes_r:
+    opensim_name: "toes_r"
+    bsp_segment: null        # No BSP segment for toes
+    yeadon_segment: null     # Yeadon foot (K3) includes toes
+    hatze_segment: null
+    parent: "calcn_r"
+    joint:
+      name: "mtp_r"
+      type: "WeldJoint"
+      location_in_parent: [0.0, 0.15, -0.05]  # TODO_SCIENTIFIC: metatarsophalangeal joint centre (forward of calcaneus)
+      orientation_in_parent: [0.0, 0.0, 0.0]
+      location_in_child: [0.0, 0.0, 0.0]
+      orientation_in_child: [0.0, 0.0, 0.0]
+    coordinates: []
+    notes: "TODO_SCIENTIFIC: WeldJoint placeholder; MTP has 1+ DOF; toes not segmented in BSP"
+
+  toes_l:
+    opensim_name: "toes_l"
+    bsp_segment: null        # No BSP segment for toes
+    yeadon_segment: null     # Yeadon foot (J3) includes toes
+    hatze_segment: null
+    parent: "calcn_l"
+    joint:
+      name: "mtp_l"
+      type: "WeldJoint"
+      location_in_parent: [0.0, 0.15, -0.05]  # TODO_SCIENTIFIC: metatarsophalangeal joint centre
+      orientation_in_parent: [0.0, 0.0, 0.0]
+      location_in_child: [0.0, 0.0, 0.0]
+      orientation_in_child: [0.0, 0.0, 0.0]
+    coordinates: []
+    notes: "TODO_SCIENTIFIC: WeldJoint placeholder; toes not segmented in BSP"
