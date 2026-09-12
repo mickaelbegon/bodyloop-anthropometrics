@@ -1,0 +1,351 @@
+# Joint correspondence table: 17-segment model → biorbd
+# Conventions: de Leva (1996) / ISB recommendations
+# Coordinate system: right-handed, Z proximal, X anterior, Y lateral
+# Units: metres, radians
+#
+# Fields per segment:
+#   biorbd_name          : name written in the .bioMod segment block
+#   yeadon_segment       : key in export_inertial_params() dict (str(segment.label))
+#                          TODO_VALIDATE against yeadon 1.5 segment label convention
+#   bodybsp_segment      : key in BodyBSP.segments (direct mesh pipeline), or null
+#   hatze_segment        : Hatze (1979) segment number — see docs/HATZE_EQUATIONS.md §1
+#   parent               : biorbd parent segment ("root" for global-frame parent)
+#   joint_type           : free | revolute | fixed
+#   dof                  : ordered list — translations first, then rotations
+#                          tokens: TrX TrY TrZ RotX RotY RotZ
+#   ranges               : DOF token → [min, max] in metres (translations) or radians (rotations)
+#   joint_centre_bodyloop: dot-notation path in normalised BodyLoop data, or null
+#   notes                : free-text; items marked TODO_SCIENTIFIC require scientific review
+
+# Hierarchy:
+# root
+# └── Pelvis (6 DOF)
+#     ├── Thorax (3 DOF, lumbosacral)
+#     │   ├── Head (3 DOF, cervicothoracic)
+#     │   ├── ShoulderL (3 DOF, glenohumeral L)
+#     │   │   └── UpperArmL (1 DOF, elbow L)
+#     │   │       └── ForearmL (1 DOF, wrist L)
+#     │   │           └── HandL (0 DOF, fixed)
+#     │   └── ShoulderR (3 DOF, glenohumeral R)
+#     │       └── UpperArmR (1 DOF, elbow R)
+#     │           └── ForearmR (1 DOF, wrist R)
+#     │               └── HandR (0 DOF, fixed)
+#     ├── ThighL (3 DOF, hip L)
+#     │   └── ShankL (1 DOF, knee L)
+#     │       └── FootL (2 DOF, ankle L)
+#     └── ThighR (3 DOF, hip R)
+#         └── ShankR (1 DOF, knee R)
+#             └── FootR (2 DOF, ankle R)
+
+segments:
+  pelvis:
+    biorbd_name: "Pelvis"
+    yeadon_segment: "P"
+    # TODO_VALIDATE: confirm yeadon.Human segment label for pelvis against yeadon 1.5
+    bodybsp_segment: null
+    # NOTE: BodyBSP does not separate pelvis from thorax; 'trunk' covers both.
+    # Use Yeadon or Hatze pipelines for pelvis-specific parameters.
+    hatze_segment: 11
+    parent: "root"
+    joint_type: "free"
+    dof: [TrX, TrY, TrZ, RotX, RotY, RotZ]
+    ranges:
+      TrX: [-3.0, 3.0]
+      # TODO_SCIENTIFIC: translation bounds from typical lab motion capture volume
+      TrY: [-3.0, 3.0]
+      TrZ: [-0.1, 2.5]
+      RotX: [-0.5, 0.5]
+      # TODO_SCIENTIFIC: pelvis ROM from ISB 2025 normative data
+      RotY: [-0.5, 0.5]
+      RotZ: [-3.14159, 3.14159]
+    joint_centre_bodyloop: null
+    notes: >
+      Root segment; 6 DOF free joint. Translations relative to global origin.
+      Pelvis origin at mid-point of left and right ASIS (ISB convention).
+
+  thorax:
+    biorbd_name: "Thorax"
+    yeadon_segment: "T"
+    # TODO_VALIDATE: confirm yeadon.Human segment label for thorax against yeadon 1.5
+    bodybsp_segment: "trunk"
+    # WARNING: BodyBSP 'trunk' covers both pelvis and thorax; mass is overestimated
+    # for Thorax alone. TODO_SCIENTIFIC: implement pelvis/thorax BSP split.
+    hatze_segment: 1
+    parent: "Pelvis"
+    joint_type: "revolute"
+    dof: [RotX, RotY, RotZ]
+    ranges:
+      RotX: [-0.7, 0.5]
+      # TODO_SCIENTIFIC: lumbosacral ROM — de Leva (1996) / ISB 2025 norms
+      RotY: [-0.5, 0.5]
+      RotZ: [-0.5, 0.5]
+    joint_centre_bodyloop: "normalized/axes/lumbar_joint/origin"
+    # TODO_SCIENTIFIC: lumbosacral joint centre — regression from pelvic landmarks
+    # (Dumas et al. 2004) vs. direct anatomical measurement vs. functional approach.
+    notes: >
+      Lumbosacral joint. WARNING: BodyBSP trunk mass includes pelvis (see above).
+      Thorax segment from Ls1 (top of sacrum) to Ls4 (sternal notch) in Yeadon
+      notation.
+
+  head:
+    biorbd_name: "Head"
+    yeadon_segment: "C"
+    # TODO_VALIDATE: confirm yeadon.Human label for head-neck (may be 'C' or 'head-neck')
+    bodybsp_segment: "head"
+    hatze_segment: 2
+    parent: "Thorax"
+    joint_type: "revolute"
+    dof: [RotX, RotY, RotZ]
+    ranges:
+      RotX: [-0.5, 0.5]
+      # TODO_SCIENTIFIC: cervicothoracic ROM — literature range ~±30 deg
+      RotY: [-0.5, 0.5]
+      RotZ: [-0.8, 0.8]
+    joint_centre_bodyloop: "normalized/axes/cervicothoracic_joint/origin"
+    # TODO_SCIENTIFIC: cervicothoracic joint centre — anatomical vs. functional definition
+    notes: >
+      Head-neck segment (Hatze 2, Yeadon Ls5-Ls8). Cervicothoracic joint at C7-T1.
+
+  shoulder_l:
+    biorbd_name: "ShoulderL"
+    yeadon_segment: null
+    # NOTE: Yeadon (1990) has no separate shoulder segment; upper arm starts at glenohumeral.
+    bodybsp_segment: null
+    # NOTE: BodyBSP does not extract shoulder as a separate segment.
+    hatze_segment: 3
+    parent: "Thorax"
+    joint_type: "revolute"
+    dof: [RotX, RotY, RotZ]
+    ranges:
+      RotX: [-1.57, 3.14]
+      # TODO_SCIENTIFIC: glenohumeral ROM — large individual variation; ISB 2025
+      RotY: [-1.57, 0.5]
+      RotZ: [-1.57, 1.57]
+    joint_centre_bodyloop: "normalized/axes/glenohumeral_left/origin"
+    # TODO_SCIENTIFIC: glenohumeral joint centre — regression (Dumas 2007, Meskers 1998)
+    # vs. functional calibration approach
+    notes: >
+      Left shoulder girdle / glenohumeral joint proxy. No Yeadon or BodyBSP analogue;
+      mass and inertia must be obtained from Hatze segment 3 or set to zero as a
+      massless kinematic proxy. TODO_SCIENTIFIC: decide shoulder segment mass convention.
+
+  upper_arm_l:
+    biorbd_name: "UpperArmL"
+    yeadon_segment: "A1"
+    # TODO_VALIDATE: confirm yeadon.Human segment label for left upper arm
+    bodybsp_segment: "upper_arm_left"
+    hatze_segment: 7
+    parent: "ShoulderL"
+    joint_type: "revolute"
+    dof: [RotX]
+    ranges:
+      RotX: [0.0, 2.6]
+      # TODO_SCIENTIFIC: elbow flexion 0–150 deg; verify axis direction convention
+    joint_centre_bodyloop: "normalized/axes/elbow_left/origin"
+    # TODO_SCIENTIFIC: elbow joint centre — midpoint of medial/lateral epicondyles
+    notes: >
+      Left upper arm. Elbow flexion-extension only (1 DOF).
+      Pronation/supination is not modelled here.
+      TODO_SCIENTIFIC: consider adding forearm rotation DOF.
+
+  forearm_l:
+    biorbd_name: "ForearmL"
+    yeadon_segment: "A2"
+    # TODO_VALIDATE: confirm yeadon.Human segment label for left forearm
+    bodybsp_segment: "forearm_left"
+    hatze_segment: 5
+    parent: "UpperArmL"
+    joint_type: "revolute"
+    dof: [RotX]
+    ranges:
+      RotX: [-0.5, 1.4]
+      # TODO_SCIENTIFIC: wrist flexion-extension range
+    joint_centre_bodyloop: "normalized/axes/wrist_left/origin"
+    # TODO_SCIENTIFIC: wrist joint centre — midpoint of radial/ulnar styloids
+    notes: "Left forearm. Wrist flexion-extension only (1 DOF)."
+
+  hand_l:
+    biorbd_name: "HandL"
+    yeadon_segment: "A3"
+    # TODO_VALIDATE: confirm yeadon.Human segment label for left hand
+    bodybsp_segment: "hand_left"
+    hatze_segment: 9
+    parent: "ForearmL"
+    joint_type: "fixed"
+    dof: []
+    ranges: {}
+    joint_centre_bodyloop: "normalized/axes/hand_left/origin"
+    # TODO_SCIENTIFIC: hand origin — distal wrist landmark definition
+    notes: >
+      Left hand. Fixed to forearm (0 DOF).
+      TODO_SCIENTIFIC: consider adding wrist DOF for manipulation tasks.
+
+  shoulder_r:
+    biorbd_name: "ShoulderR"
+    yeadon_segment: null
+    bodybsp_segment: null
+    hatze_segment: 4
+    parent: "Thorax"
+    joint_type: "revolute"
+    dof: [RotX, RotY, RotZ]
+    ranges:
+      RotX: [-1.57, 3.14]
+      # TODO_SCIENTIFIC: glenohumeral ROM right side
+      RotY: [-0.5, 1.57]
+      RotZ: [-1.57, 1.57]
+    joint_centre_bodyloop: "normalized/axes/glenohumeral_right/origin"
+    # TODO_SCIENTIFIC: glenohumeral joint centre right — same regression as left
+    notes: >
+      Right shoulder girdle / glenohumeral joint proxy. No Yeadon or BodyBSP analogue.
+      TODO_SCIENTIFIC: decide shoulder segment mass convention (see shoulder_l).
+
+  upper_arm_r:
+    biorbd_name: "UpperArmR"
+    yeadon_segment: "B1"
+    # TODO_VALIDATE: confirm yeadon.Human segment label for right upper arm
+    bodybsp_segment: "upper_arm_right"
+    hatze_segment: 8
+    parent: "ShoulderR"
+    joint_type: "revolute"
+    dof: [RotX]
+    ranges:
+      RotX: [0.0, 2.6]
+      # TODO_SCIENTIFIC: elbow flexion right side
+    joint_centre_bodyloop: "normalized/axes/elbow_right/origin"
+    notes: "Right upper arm. Elbow flexion-extension only (1 DOF)."
+
+  forearm_r:
+    biorbd_name: "ForearmR"
+    yeadon_segment: "B2"
+    # TODO_VALIDATE: confirm yeadon.Human segment label for right forearm
+    bodybsp_segment: "forearm_right"
+    hatze_segment: 6
+    parent: "UpperArmR"
+    joint_type: "revolute"
+    dof: [RotX]
+    ranges:
+      RotX: [-0.5, 1.4]
+      # TODO_SCIENTIFIC: wrist flexion-extension right side
+    joint_centre_bodyloop: "normalized/axes/wrist_right/origin"
+    notes: "Right forearm. Wrist flexion-extension only (1 DOF)."
+
+  hand_r:
+    biorbd_name: "HandR"
+    yeadon_segment: "B3"
+    # TODO_VALIDATE: confirm yeadon.Human segment label for right hand
+    bodybsp_segment: "hand_right"
+    hatze_segment: 10
+    parent: "ForearmR"
+    joint_type: "fixed"
+    dof: []
+    ranges: {}
+    joint_centre_bodyloop: "normalized/axes/hand_right/origin"
+    notes: "Right hand. Fixed to forearm (0 DOF)."
+
+  thigh_l:
+    biorbd_name: "ThighL"
+    yeadon_segment: "J1"
+    # TODO_VALIDATE: confirm yeadon.Human segment label for left thigh
+    bodybsp_segment: "thigh_left"
+    hatze_segment: 15
+    parent: "Pelvis"
+    joint_type: "revolute"
+    dof: [RotX, RotY, RotZ]
+    ranges:
+      RotX: [-2.5, 0.5]
+      # TODO_SCIENTIFIC: hip flexion-extension (0–140 deg flex, 0–30 deg ext, ISB 2025)
+      RotY: [-0.5, 1.0]
+      # TODO_SCIENTIFIC: hip abduction-adduction
+      RotZ: [-1.57, 1.57]
+      # TODO_SCIENTIFIC: hip internal-external rotation
+    joint_centre_bodyloop: "normalized/axes/hip_left/origin"
+    # TODO_SCIENTIFIC: hip joint centre — regression from pelvic landmarks
+    # (Bell et al. 1990; Leardini et al. 1999; Harrington et al. 2007)
+    # vs. functional calibration approach
+    notes: >
+      Left thigh. 3-DOF ball-and-socket hip joint.
+      TODO_SCIENTIFIC: hip joint centre regression formula must be validated
+      against functional calibration for this subject population.
+
+  shank_l:
+    biorbd_name: "ShankL"
+    yeadon_segment: "J2"
+    # TODO_VALIDATE: confirm yeadon.Human segment label for left shank
+    bodybsp_segment: "shank_left"
+    hatze_segment: 16
+    parent: "ThighL"
+    joint_type: "revolute"
+    dof: [RotX]
+    ranges:
+      RotX: [0.0, 2.5]
+      # TODO_SCIENTIFIC: knee flexion-extension range (0–140 deg)
+    joint_centre_bodyloop: "normalized/axes/knee_left/origin"
+    # TODO_SCIENTIFIC: knee joint centre — midpoint of medial/lateral condyles
+    notes: "Left shank. Knee flexion-extension only (1 DOF)."
+
+  foot_l:
+    biorbd_name: "FootL"
+    yeadon_segment: "J3"
+    # TODO_VALIDATE: confirm yeadon.Human segment label for left foot
+    bodybsp_segment: "foot_left"
+    hatze_segment: 17
+    parent: "ShankL"
+    joint_type: "revolute"
+    dof: [RotX, RotZ]
+    ranges:
+      RotX: [-0.7, 0.5]
+      # TODO_SCIENTIFIC: ankle plantarflexion-dorsiflexion (40 deg PF, 30 deg DF)
+      RotZ: [-0.5, 0.5]
+      # TODO_SCIENTIFIC: ankle inversion-eversion
+    joint_centre_bodyloop: "normalized/axes/ankle_left/origin"
+    # TODO_SCIENTIFIC: ankle joint centre — midpoint of medial/lateral malleoli
+    notes: "Left foot. 2-DOF ankle (plantarflexion-dorsiflexion + inversion-eversion)."
+
+  thigh_r:
+    biorbd_name: "ThighR"
+    yeadon_segment: "K1"
+    # TODO_VALIDATE: confirm yeadon.Human segment label for right thigh
+    bodybsp_segment: "thigh_right"
+    hatze_segment: 12
+    parent: "Pelvis"
+    joint_type: "revolute"
+    dof: [RotX, RotY, RotZ]
+    ranges:
+      RotX: [-2.5, 0.5]
+      # TODO_SCIENTIFIC: hip flexion-extension right side
+      RotY: [-1.0, 0.5]
+      RotZ: [-1.57, 1.57]
+    joint_centre_bodyloop: "normalized/axes/hip_right/origin"
+    # TODO_SCIENTIFIC: hip joint centre right — same regression as left side
+    notes: "Right thigh. 3-DOF ball-and-socket hip joint."
+
+  shank_r:
+    biorbd_name: "ShankR"
+    yeadon_segment: "K2"
+    # TODO_VALIDATE: confirm yeadon.Human segment label for right shank
+    bodybsp_segment: "shank_right"
+    hatze_segment: 13
+    parent: "ThighR"
+    joint_type: "revolute"
+    dof: [RotX]
+    ranges:
+      RotX: [0.0, 2.5]
+      # TODO_SCIENTIFIC: knee flexion-extension right side
+    joint_centre_bodyloop: "normalized/axes/knee_right/origin"
+    notes: "Right shank. Knee flexion-extension only (1 DOF)."
+
+  foot_r:
+    biorbd_name: "FootR"
+    yeadon_segment: "K3"
+    # TODO_VALIDATE: confirm yeadon.Human segment label for right foot
+    bodybsp_segment: "foot_right"
+    hatze_segment: 14
+    parent: "ShankR"
+    joint_type: "revolute"
+    dof: [RotX, RotZ]
+    ranges:
+      RotX: [-0.7, 0.5]
+      # TODO_SCIENTIFIC: ankle plantarflexion-dorsiflexion right side
+      RotZ: [-0.5, 0.5]
+    joint_centre_bodyloop: "normalized/axes/ankle_right/origin"
+    notes: "Right foot. 2-DOF ankle (plantarflexion-dorsiflexion + inversion-eversion)."
