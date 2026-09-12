@@ -58,7 +58,7 @@ target-version = "py311"
 select = ["E", "F", "W", "I", "N", "UP", "ANN", "D"]
 ignore = ["D203", "D213"]
 
-[tool.ruff.lint.pydocstring-convention]
+[tool.ruff.lint.pydocstyle]
 convention = "numpy"
 
 [tool.mypy]
