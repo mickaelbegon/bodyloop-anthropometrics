@@ -84,18 +84,52 @@ Format: `## [YYYY-MM-DD] Title`
   of the deltoid cap must be chosen before cross-estimator comparison.
 - **Validator**: (unassigned)
 
-## [2026-09-11] Hatze equation audit (TODO_SCIENTIFIC)
+## [2026-09-12] Hatze primitive equation audit — numerical validation
 
-- **Decision**: PENDING — hatze-biomech MATLAB implementation used only as a reference,
-  not as a validated implementation.  The hatze-biomech README explicitly states that
-  some equations are incomplete or incorrect.
-- **Rationale**: Primary source (Hatze 1979 CSIR Technical Report) must be obtained and
-  all equations transcribed independently before the Python implementation can be trusted.
+- **Decision**: PARTIALLY RESOLVED — all 9 geometric primitives (A1.1–A1.9) were
+  validated by two independent numerical engines (adaptive Gauss–Kronrod quadrature at
+  1e-10 accuracy and 10M-sample seeded Monte-Carlo) plus closed-form derivations.
+  Results written to `validation/HATZE_PRIMITIVES_AUDIT.md` and `docs/HATZE_EQUATIONS.md`.
+- **Findings (8 corrections applied to `docs/HATZE_EQUATIONS.md`):**
+  1. **A1.4 (Octoparaboloid) is WRONG.** All 4 coefficients diverge 1.6–3.3 % from
+     the printed surface definition. The coefficient 0.19473 for b² is *structurally
+     unattainable* (must be 1/5 for any member of that surface family). Either the
+     surface equation or the coefficients were mis-transcribed in the cheatsheet.
+     `⛔ DO NOT IMPLEMENT A1.4 without verifying against Hatze (1979).`
+  2. **A1.7 centroid wrong:** printed `z̄ = a/3`; correct is `z̄ = c/3` (depth axis).
+  3. **5 primitives have swapped axis labels** in the header (A1.1, A1.3, A1.7, A1.8,
+     A1.9): the inertia formulas are internally consistent but the `Parameters: a(Y), b(X)`
+     annotation is inverted. A literal implementation would swap Ī_x/Ī_y (~20–26 % error).
+  4. **A1.8 is a thin-plate approximation** — drops `Mh²/12`; 8.2 % error at foot-
+     segment thickness (h ≈ 20 mm). Real implementation should use the full formula.
+  5. **3 TODO_VALIDATE flags closed:** A1.9 coefficients (0.0686 = 12/175, 0.15 = 3/20)
+     and A1.2 coefficient (12/175) are exact rationals. A1.3 coefficient 0.07 ≈
+     1/4 − 16/(9π²) = 0.06987 is correct to 0.18 % rounding.
+  6. **A1.2, A1.5, A1.6** fully verified as printed — no corrections needed.
+- **What this audit covers / does NOT cover:** This validates the geometric primitive
+  library (mass, centroid, inertia tensors). It does NOT validate: the mapping from
+  Hatze's 242 measurements to primitive parameters (a, b, c, h, …), the subcutaneous
+  fat density model, or the 17-segment anatomy. These require Hatze (1979) original.
+- **Reference**: Hatze, H. (1979). CSIR Technical Report TWISK 79, Pretoria.
+  Hatze, H. (1980). J Biomech 13(10):833-843.
+  `validation/HATZE_PRIMITIVES_AUDIT.md`, `validation/validate_hatze_primitives.py`.
+- **Validation status**: PARTIALLY RESOLVED — primitives audited; A1.4 UNRESOLVED pending
+  primary source; measurement-to-parameter mapping PENDING.
+- **Validator**: Val-Hatze agent (Claude Opus), 2026-09-12.
+
+## [2026-09-11] Hatze equation audit — primary source (TODO_SCIENTIFIC)
+
+- **Decision**: PENDING — hatze-biomech cheatsheet equations extracted and audited
+  (see entry above), but the 242-measurement-to-parameter mapping requires the original
+  publication.
+- **Rationale**: The cheatsheet does NOT contain the equations that map Hatze's 242
+  body measurements to primitive parameters (a, b, c, r, h, …). These are only in
+  the original report.
 - **Reference**: Hatze, H. (1979). A model for the computational determination of
   parameter values of anthropomorphic segments. CSIR Technical Report TWISK 79.
   Hatze, H. (1980). A mathematical model for the computational determination of
   parameter values of anthropomorphic segments. J Biomech 13(10):833-843.
-- **Validation status**: PENDING
+- **Validation status**: PENDING — must obtain primary source.
 - **Validator**: (unassigned)
 
 ## [2026-09-11] Yeadon measurement mapping completeness

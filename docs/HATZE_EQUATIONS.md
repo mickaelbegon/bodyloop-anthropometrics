@@ -3,7 +3,9 @@
 **Source:** `wspr/hatze-biomech` repository, `hatze-cheatsheet.pdf`  
 **Extraction date:** 2026-09-12  
 **Pages read:** 1–11 (image-based PDF, rendered at 2.5× and read visually)  
-**Validation status:** TRANSCRIBED — NOT YET VERIFIED against Hatze (1979) original report
+**Validation status:** NUMERICALLY AUDITED 2026-09-12 — see `validation/HATZE_PRIMITIVES_AUDIT.md`  
+**Audit method:** Two independent engines — nested adaptive Gauss–Kronrod quadrature (1e-10 accuracy)  
+and 10M-sample Monte-Carlo rejection sampling. Full derivations in the audit file.
 
 > ⚠️ **Scientific caveat:** The `hatze-biomech` repository README explicitly states that
 > some equations are incomplete or incorrect. Every equation below must be verified
@@ -58,15 +60,19 @@ Notation:
 
 ### A1.1 — Elliptic Cylinder
 
-Parameters: semi-axes a (Y), b (X), height h (Z)
+Parameters: semi-axes **a (X)**, **b (Y)**, height h (Z)
+
+> ⚠️ **AUDIT CORRECTION:** The cheatsheet header stated `a (Y), b (X)` — that is wrong.
+> The inertia formulas are internally consistent only with **a = X semi-axis, b = Y semi-axis**.
+> A literal reading of the header would swap Ī_x and Ī_y (~21–26 % error).
 
 ```
 M  = γπabh
 x̄ = ȳ = z̄ = 0
 
-Ī_x = M(3b² + h²) / 12
-Ī_y = M(3a² + h²) / 12
-Ī_z = M(a² + b²)  / 4
+Ī_x = M(3b² + h²) / 12      [b = Y semi-axis; verified exact]
+Ī_y = M(3a² + h²) / 12      [a = X semi-axis; verified exact]
+Ī_z = M(a² + b²)  / 4       [verified exact]
 ```
 
 *Used for: trunk slices, limb cross-sections*
@@ -81,24 +87,30 @@ Parameters: semi-axes a (X, parabola depth), b (Y), thickness h (Z)
 M  = 4γabh / 3
 x̄ = −0.4a,   ȳ = z̄ = 0
 
-Ī_x = M(b²/5   + h²/12)
-Ī_y = M(12a²/175 + h²/12)
-Ī_z = M(12a²/175 + b²/5)
+Ī_x = M(b²/5      + h²/12)     [verified exact]
+Ī_y = M(12a²/175  + h²/12)     [12/175 is EXACT — derived via Beta functions; verified]
+Ī_z = M(12a²/175  + b²/5)      [verified exact]
 ```
+
+*Fully verified — axis labels correct. 12/175 = 0.068571… exact.*
 
 ---
 
 ### A1.3 — Semi-elliptic Plate
 
-Parameters: semi-axes a (Z), b (Y), thickness h (X)
+Parameters: semi-axes **a (X)**, **b (Y)**, thickness **h (Z)**
+
+> ⚠️ **AUDIT CORRECTION:** The cheatsheet header stated `a (Z), b (Y), h (X)` — that is wrong.
+> The formulas are consistent only with **a = X semi-axis, b = Y, h = Z thickness**.
+> Axis swap would cause ~21–27 % errors on Ī_x and Ī_z.
 
 ```
 M  = γabhπ / 2
 x̄ = 0,   ȳ = −4b/(3π),   z̄ = 0
 
-Ī_x = M(0.07b²  + h²/12)
-Ī_y = M(a²/4    + h²/12)
-Ī_z = M(a²/4    + 0.07b²)
+Ī_x = M((1/4 − 16/(9π²))b² + h²/12)   [exact; 0.07 ≈ 0.06987, 0.18 % rounding — acceptable]
+Ī_y = M(a²/4 + h²/12)                  [verified exact]
+Ī_z = M(a²/4 + (1/4 − 16/(9π²))b²)    [exact]
 ```
 
 ---
@@ -107,22 +119,30 @@ x̄ = 0,   ȳ = −4b/(3π),   z̄ = 0
 
 Parameters: semi-axes a (X), b (Y), c (Z half-depth)
 
-Surface definition in xz-plane along y-axis:
+Surface definition:
 ```
 z = ±ck(1 − (x/(ak))⁸),   for z ≥ 0
 where k = (1 − (y/b)²)^(1/2)
-
-M  = γ × 4.66493 × abc
-x̄ = ȳ = z̄ = 0
-
-Ī_x = M(0.19473b² + 0.23511c²)
-Ī_y = M(0.211a²   + 0.23511c²)
-Ī_z = M(0.211a²   + 0.19473b²)
 ```
 
-> ⚠️ **TODO_VALIDATE:** Coefficients 0.19473, 0.23511, 0.211 must be verified by
-> analytical integration of the surface definition above. The hatze-biomech README
-> flags this body type as a candidate for errors.
+> ❌ **AUDIT FINDING — GENUINELY WRONG COEFFICIENTS.** Direct numerical integration
+> of the surface definition above gives values **inconsistent** with the printed
+> coefficients. The value 0.19473 for b² is **structurally unattainable** by any
+> member of this surface family (it is identically 1/5 = 0.2 for all n and α, β).
+>
+> **Corrected values from integration of the printed surface:**
+> ```
+> M  = γ × (128/27) × abc = γ × 4.74074 × abc   [printed: 4.66493 — error −1.60 %]
+> k_y² = b²/5 = 0.2                               [printed: 0.19473 — structurally wrong]
+> k_x² = 12a²/55 ≈ 0.21818a²                      [printed: 0.211a² — error −3.29 %]
+> k_z² = 512c²/2125 ≈ 0.24094c²                   [printed: 0.23511c² — error −2.42 %]
+> ```
+>
+> **Either the surface equation or the printed coefficients were mis-transcribed.**
+> The printed numbers do not correspond to *any* single solid in the stated family.
+>
+> ⛔ **DO NOT IMPLEMENT A1.4 without verifying against Hatze (1979) original.**
+> Mark all code using these coefficients with `TODO_SCIENTIFIC`.
 
 *Used for: trunk and torso slices*
 
@@ -162,30 +182,39 @@ x̄ = 4(R³ − r³) / [3π(R² − r²)]
 
 ### A1.7 — Elliptic Paraboloid
 
-Parameters: semi-axes a (Z, paraboloid depth), b (Y), c (X)
+Parameters: semi-axes **a (X)**, **b (Y)**, **c (Z, paraboloid depth)**
+
+> ⚠️ **AUDIT CORRECTIONS:**
+> 1. The cheatsheet header stated `a (Z), b (Y), c (X)` — wrong. Consistent labelling is **a = X, b = Y, c = Z depth**.
+> 2. The centroid was printed as `z̄ = a/3`. **WRONG.** The correct centroid is `z̄ = c/3` (depth axis).
 
 ```
 M  = γπabc / 2
-x̄ = ȳ = 0,   z̄ = a/3
+x̄ = ȳ = 0,   z̄ = c/3             [corrected from a/3; verified exact]
 
-Ī_x = M(3b² + c²) / 18
-Ī_y = M(3a² + c²) / 18
-Ī_z = M(a²  + b²) / 6
+Ī_x = M(3b² + c²) / 18            [verified exact in corrected frame]
+Ī_y = M(3a² + c²) / 18            [verified exact in corrected frame]
+Ī_z = M(a²  + b²) / 6             [verified exact]
 ```
 
 ---
 
 ### A1.8 — Thin Trapezoidal Plate
 
-Parameters: length ℓ (Z), parallel sides b (proximal) and c (distal), thickness h (X)
+Parameters: length ℓ (Z), parallel sides **b** (proximal, full width) and **c** (distal, full width), thickness h (Y)
+
+> ⚠️ **AUDIT FINDINGS:**
+> 1. **Thin-plate approximation** — all `Mh²/12` terms are dropped. At h = 20 mm, ℓ = 150 mm: error on Ī_z ≈ 8.2 %. Falls below 0.5 % only for h ≲ 5 mm. Real foot segments are thicker; this is a modelling limitation, not a typo.
+> 2. **Axis label**: thickness is along Y (not X). Swap would produce ~17–18 % errors.
+> 3. **b and c are FULL widths** (pinned by M = γℓh(b+c)/2), not semi-widths.
 
 ```
 M  = γℓh(b + c) / 2
-x̄ = 0,   z̄ = ℓ(b + 2c) / [3(b + c)]
+x̄ = 0,   z̄ = ℓ(b + 2c) / [3(b + c)]      [verified exact]
 
-Ī_x = Mℓ²(b² + 4bc + c²) / [18(b + c)²]
-Ī_z = M(b² + c²) / 24
-Ī_y = Ī_x + Ī_z
+Ī_x = Mℓ²(b² + 4bc + c²) / [18(b + c)²]   [verified; thin-plate limit exact]
+Ī_z = M(b² + c²) / 24                       [verified; thin-plate; 8 % error for h = 20 mm]
+Ī_y = Ī_x + Ī_z                             [by perpendicular axis theorem for thin plate]
 ```
 
 *Used for: foot segment*
@@ -194,19 +223,26 @@ x̄ = 0,   z̄ = ℓ(b + 2c) / [3(b + c)]
 
 ### A1.9 — Ellipto-parabolic Hoof
 
-Parameters: semi-axes a (Y), b (X), height h (Z)
+Parameters: semi-axes **a (X)**, **b (Y)**, height h (Z)
+
+> ⚠️ **AUDIT CORRECTION:** The cheatsheet header stated `a (Y), b (X)` — wrong. Consistent
+> frame is **a = X, b = Y**. Axis swap would cause ~3 % errors on Ī_x/Ī_y.
+
+Solid definition (reconstructed from coefficients):
+```
+0 ≤ z ≤ h,  (x/(a·k))² ≤ 1 − z/h,  k = √(1 − (y/b)²)
+```
 
 ```
 M  = γ × 2πabh / 3
-x̄ = ȳ = 0,   z̄ = 2h/5
+x̄ = ȳ = 0,   z̄ = 2h/5              [verified exact]
 
-Ī_x = M(b²/4    + 0.0686h²)
-Ī_y = M(0.15a²  + 0.0686h²)
-Ī_z = M(0.15a²  + b²/4)
+Ī_x = M(b²/4 + (12/175)h²)          [0.0686 = 12/175 EXACTLY; verified]
+Ī_y = M((3/20)a² + (12/175)h²)      [0.15 = 3/20 EXACTLY; verified]
+Ī_z = M((3/20)a² + b²/4)            [verified exact; 0.0 % error]
 ```
 
-> ⚠️ **TODO_VALIDATE:** Coefficients 0.0686 and 0.15 must be verified by analytical
-> integration. Compare with standard hoof/paraboloid formulas.
+*Both TODO_VALIDATE flags CLOSED — coefficients are exact rational numbers.*
 
 ---
 
@@ -339,13 +375,26 @@ And the follow-up:
 
 ---
 
-## 6. Equations requiring audit (TODO_VALIDATE)
+## 6. Audit summary — 2026-09-12 (see `validation/HATZE_PRIMITIVES_AUDIT.md`)
 
-| Primitive | Quantity | Concern |
-|-----------|----------|---------|
-| A1.4 Elliptic Octoparaboloid | Coefficients 0.19473, 0.23511, 0.211 | Must verify by integration of z=±ck(1-(x/ak)^8) |
-| A1.9 Ellipto-parabolic Hoof | Coefficients 0.0686, 0.15 | Must verify by integration |
-| A1.2 Parabolic Plate | Coefficient 12/175 ≈ 0.06857 in Ī_y, Ī_z | Verify against standard parabolic plate formula |
-| A1.3 Semi-elliptic Plate | Coefficient 0.07 ≈ π²/4 − 2 ≈ 0.4674? | Likely 1/4 − 1/π² ≈ 0.149; re-derive |
+**Method:** two independent numerical engines (adaptive quadrature 1e-10 + 10M-point Monte-Carlo).
 
-See `SCIENCE_DECISIONS.md` for the audit log.
+| Primitive | Status | Issue |
+|-----------|--------|-------|
+| A1.1 Elliptic Cylinder | ✅ Coefficients correct | Header labels swapped: a = X (not Y), b = Y (not X) |
+| A1.2 Parabolic Plate | ✅ Fully correct | No issues; 12/175 is exact |
+| A1.3 Semi-elliptic Plate | ✅ Coefficients correct | Header labels swapped; 0.07 = 1/4−16/(9π²) to 0.18 % |
+| A1.4 Octoparaboloid | ❌ **WRONG** | All 4 coefficients wrong (1.6–3.3 %); 0.19473 structurally unattainable. Do not implement without Hatze 1979. |
+| A1.5 Hemisphere | ✅ Fully correct | No issues |
+| A1.6 Hollow Half-Cylinder | ✅ Fully correct | No issues |
+| A1.7 Elliptic Paraboloid | ✅ Coefficients correct | Header labels swapped; centroid was **a/3 → must be c/3** |
+| A1.8 Trapezoidal Plate | ⚠️ Thin-plate approx. | Drops Mh²/12; 8 % error at realistic foot thickness; axis label swap |
+| A1.9 Ellipto-parabolic Hoof | ✅ Fully correct | Header labels swapped; 0.0686 = 12/175, 0.15 = 3/20 (exact rationals) |
+
+**Previous TODO_VALIDATE flags — resolution:**
+- A1.9 (0.0686, 0.15): **CLOSED** — both exact rationals, verified numerically
+- A1.2 (12/175): **CLOSED** — exact, derived via Beta functions
+- A1.3 (0.07): **CLOSED** — 0.07 ≈ 1/4 − 16/(9π²) = 0.06987, 0.18 % rounding
+- A1.4 (all coefficients): **OPEN** — printed values are wrong; require Hatze (1979)
+
+See `SCIENCE_DECISIONS.md` for the decision log.
