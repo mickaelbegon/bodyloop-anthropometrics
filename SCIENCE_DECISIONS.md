@@ -20,6 +20,70 @@ Format: `## [YYYY-MM-DD] Title`
 - **Validation status**: PENDING
 - **Validator**: (unassigned)
 
+## [2026-09-11] Segment density values for direct mesh BSP (TODO_SCIENTIFIC)
+
+- **Decision**: Using de Leva (1996) / Dempster (1955) population-average densities as
+  placeholder in `anthropometry/direct_mesh_bsp.py::SEGMENT_DENSITIES_KG_M3`.
+- **Values used** (kg/m³): head = 1100, trunk = 1000, upper_arm = 1056, forearm = 1130,
+  hand = 1160, thigh = 1050, shank = 1065, foot = 1090.  Left and right share the same
+  value.  These differ slightly from the coarser per-segment-class table in
+  `geometry/mass_properties.py::SEGMENT_DENSITY_KG_M3`, which is kept for the
+  segment-class API; the two tables must be reconciled once real densities are available.
+- **Rationale / Why**: No DEXA calibration available at project start.  de Leva (1996)
+  provides the most widely cited tabulated adjustments to Zatsiorsky-Seluyanov's data.
+  Densities are then uniformly rescaled so that the summed segment mass matches the
+  measured body mass; the scale factor is reported as `BodyBSP.density_scale_factor` and
+  a pre-calibration error above 1 % raises a warning note rather than being absorbed.
+- **Reference**: de Leva, P. (1996). Adjustments to Zatsiorsky-Seluyanov's segment
+  inertia parameters. J Biomech 29(9):1223-1230.
+  Dempster, W.T. (1955). Space requirements of the seated operator. WADC TR 55-159.
+- **Validation status**: PENDING
+- **Validator**: (unassigned)
+
+## [2026-09-11] Pulmonary volume correction for trunk BSP (TODO_SCIENTIFIC)
+
+- **Decision**: ICRP reference lung volumes are tabulated in
+  `direct_mesh_bsp.py::DEFAULT_LUNG_VOLUME_M3` (male 3.0 L, female 2.3 L, other 2.65 L)
+  and the correction is implemented, but it is DISABLED by default
+  (`compute_body_bsp(..., apply_lung_correction=False)`).
+- **Rationale / Why**: The surface mesh does not represent internal cavities, so the raw
+  volume over-estimates the mass of tissue in the thorax.  However, the de Leva /
+  Dempster trunk density (1000 kg/m³) is itself a whole-trunk average that already
+  embeds the pulmonary cavity — applying both would double-count the lungs.  Enabling
+  the correction is only correct together with a lung-free trunk tissue density.  When
+  enabled, the effective density becomes ρ_trunk · (1 − V_lung / V_trunk) and both the
+  segment and the body-level notes record it.
+- **Reference**: ICRP (2002). Publication 89: Basic Anatomical and Physiological Data
+  for Use in Radiological Protection. Annals of the ICRP 32(3-4).
+  Dumas, R. et al. (2015). Inertial properties of the human trunk. J Biomech 48(6).
+- **Validation status**: PENDING — requires a subject-specific lung volume (spirometry
+  or CT) and a lung-free trunk tissue density before it can be switched on.
+- **Validator**: (unassigned)
+
+## [2026-09-11] Segment boundary planes and the shoulder convention (TODO_SCIENTIFIC)
+
+- **Decision**: `direct_mesh_bsp.define_segment_boundaries` cuts each joint with a plane
+  through the joint centre perpendicular to the long axis of the DISTAL segment
+  (Dempster / de Leva convention).  Two extra, non-anatomical planes are required for the
+  cuts to actually disconnect the segments: a parasagittal plane through each
+  glenohumeral centre (`<side>_axilla`), because with the arms hanging the arm and trunk
+  remain joined below a transverse shoulder plane; and a mid-sagittal plane through the
+  hip midpoint (`sagittal_pelvis`), because a hip cut alone leaves the two thighs joined
+  through the perineal region.
+- **Consequence**: tissue lateral to the glenohumeral centre and proximal to the shoulder
+  plane (the superior deltoid cap) is assigned to NO segment.  It is not redistributed;
+  `compute_body_bsp` reports the segmented-versus-whole-body volume residual in
+  `BodyBSP.notes` and warns above 2 %.  Perineal tissue below the hip planes is assigned
+  to the thighs.
+- **Rationale / Why**: Boundary definitions differ between estimators — Yeadon (1990)
+  uses a different shoulder boundary from de Leva (1996) — so arm and trunk masses are
+  not comparable across the three estimators without accounting for the convention.
+- **Reference**: de Leva, P. (1996). J Biomech 29(9):1223-1230, Table 1.
+  Yeadon, M.R. (1990). J Biomech 23(1):67-74.
+- **Validation status**: PENDING — the definitive shoulder boundary and the destination
+  of the deltoid cap must be chosen before cross-estimator comparison.
+- **Validator**: (unassigned)
+
 ## [2026-09-11] Hatze equation audit (TODO_SCIENTIFIC)
 
 - **Decision**: PENDING — hatze-biomech MATLAB implementation used only as a reference,
